@@ -143,13 +143,27 @@ export function BerandaPage() {
                 <button
                   key={e.id}
                   type="button"
-                  title={tip}
                   aria-label={tip}
                   onClick={() => navigate(`/event/${e.id}`)}
-                  className="flex h-full flex-1 cursor-pointer items-end justify-center gap-1.5 rounded-t-[10px] border-none bg-transparent p-0 hover:bg-primary/5"
+                  className="group/bar relative flex h-full flex-1 cursor-pointer items-end justify-center gap-1.5 rounded-t-[10px] border-none bg-transparent p-0 hover:bg-primary/5"
                 >
                   <span className="w-[28%] max-w-[30px] rounded-[8px_8px_2px_2px] bg-success" style={{ height: Math.round((r.masuk / mx) * 190) }} />
                   <span className="w-[28%] max-w-[30px] rounded-[8px_8px_2px_2px] bg-accent" style={{ height: Math.round((r.keluar / mx) * 190) }} />
+                  {/* Kartu info bergaya, pengganti tooltip bawaan browser. */}
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-1 left-1/2 z-20 flex w-max max-w-[220px] -translate-x-1/2 translate-y-1 flex-col gap-1 rounded-xl bg-navy px-3 py-2.5 text-left text-[11px] text-white opacity-0 shadow-[0_14px_30px_-14px_rgba(18,38,74,.7)] transition duration-150 group-hover/bar:translate-y-0 group-hover/bar:opacity-100 group-focus-visible/bar:translate-y-0 group-focus-visible/bar:opacity-100"
+                  >
+                    <span className="truncate text-xs font-bold">{tanpaAwalan(e.nama, org?.nama)}</span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-[2px] bg-success" />
+                      Pemasukan <b className="ml-auto pl-2">{rupiah(r.masuk)}</b>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="size-2 rounded-[2px] bg-accent" />
+                      Pengeluaran <b className="ml-auto pl-2">{rupiah(r.keluar)}</b>
+                    </span>
+                  </span>
                 </button>
               );
             })}

@@ -2,6 +2,8 @@ import { useRef, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { Icon, type NamaIkon } from '../components/icons';
 import { Modal, TombolTutup } from '../components/Modal';
+import { labelUnggah, ProgresUnggah } from '../components/ProgresUnggah';
+import { Tip } from '../components/Tip';
 import { GagalMemuat, Konfirmasi, Memuat, PesanGalat } from '../components/Status';
 import { useToast } from '../components/Toast';
 import { Badge, Button, Field, Ilustrasi, Inisial, Input, Select, TextArea, cx } from '../components/ui';
@@ -18,7 +20,9 @@ import {
   useSimpanOrganisasi,
   useSimpanPengguna,
   useSimpanTemplate,
+  useResetMfaPengguna,
   useTambahMaster,
+  useUbahKeamanan,
   useUbahNotifikasi,
   useUnggahLogo,
   type JenisMaster,
@@ -27,9 +31,10 @@ import { errorMessage, fieldErrors } from '../lib/api';
 import { DESKRIPSI_PERAN, DESKRIPSI_STATUS_EVENT, LABEL_PERAN, LABEL_STATUS_EVENT, STATUS_EVENT } from '../lib/label';
 import { warnaAvatar } from '../lib/warna';
 import type { Izin, Organisasi, Pengguna, Peran, Ref, TemplateEvent } from '../types';
+import { MfaSaya } from '../features/akun/MfaSaya';
 import { TandaTanganSaya } from '../features/akun/TandaTanganSaya';
 
-type Tab = 'profil' | 'pengguna' | 'kategori' | 'event' | 'notif' | 'akun';
+type Tab = 'profil' | 'pengguna' | 'kategori' | 'event' | 'notif' | 'keamanan' | 'akun';
 
 const TAB: [Tab, string, NamaIkon, Izin | null][] = [
   ['profil', 'Profil Organisasi', 'home', 'kelolaPengaturan'],
@@ -37,6 +42,7 @@ const TAB: [Tab, string, NamaIkon, Izin | null][] = [
   ['kategori', 'Kategori Keuangan', 'wallet', 'kelolaPengaturan'],
   ['event', 'Pengaturan Event', 'cal', 'kelolaPengaturan'],
   ['notif', 'Notifikasi', 'set', 'kelolaPengaturan'],
+  ['keamanan', 'Keamanan', 'shield', 'kelolaPengaturan'],
   ['akun', 'Akun Saya', 'user', null],
 ];
 
@@ -111,7 +117,7 @@ function TabProfil() {
           />
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => fileRef.current?.click()} disabled={unggah.isPending} className="rounded-[10px] px-3.5 py-2 text-[13px]">
-              {unggah.isPending ? 'Mengunggah…' : 'Ganti Logo'}
+              {labelUnggah(unggah.progres, 'Ganti Logo')}
             </Button>
             {org?.logoUrl && (
               <Button variant="secondary" onClick={() => hapus.mutate(undefined, { onSuccess: () => toast('Logo dihapus') })} className="rounded-[10px] px-3.5 py-2 text-[13px]">
@@ -120,6 +126,7 @@ function TabProfil() {
             )}
           </div>
           <span className="text-xs text-ink-muted">PNG, JPG, atau WEBP, rasio 1:1</span>
+          <ProgresUnggah progres={unggah.progres} nama="logo" className="w-56 max-w-full" />
         </div>
       </div>
       <FormProfil key={org?.nama ?? ''} org={org} />
@@ -131,10 +138,14 @@ function TabProfil() {
 
 function PenggunaModal({ pengguna, onClose }: { pengguna: Pengguna | null; onClose: () => void }) {
   const simpan = useSimpanPengguna();
+  const resetMfa = useResetMfaPengguna();
   const me = useMe().data;
   const toast = useToast();
+  const [konfirmasiMfa, setKonfirmasiMfa] = useState(false);
+  const [mfaAktif, setMfaAktif] = useState(pengguna?.mfaAktif ?? false);
   const [f, setF] = useState({
     nama: pengguna?.nama ?? '',
+    username: pengguna?.username ?? '',
     email: pengguna?.email ?? '',
     peran: pengguna?.peran ?? ('anggota' as Peran),
     jabatan: pengguna?.jabatan ?? '',
@@ -151,7 +162,7 @@ function PenggunaModal({ pengguna, onClose }: { pengguna: Pengguna | null; onClo
       { id: pengguna?.id, ...f },
       {
         onSuccess: () => {
-          toast(pengguna ? 'Pengguna diperbarui' : `Akun ${f.email} dibuat`);
+          toast(pengguna ? 'Pengguna diperbarui' : `Akun ${f.username.trim().toLowerCase()} dibuat`);
           onClose();
         },
       },
@@ -171,7 +182,19 @@ function PenggunaModal({ pengguna, onClose }: { pengguna: Pengguna | null; onClo
             <Field label="Nama *">
               <Input value={f.nama} maxLength={120} onChange={(e) => setF({ ...f, nama: e.target.value })} className="py-[11px]" />
             </Field>
-            <Field label="Email *">
+            <Field label="Username *">
+              <Input
+                value={f.username}
+                maxLength={32}
+                autoComplete="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                onChange={(e) => setF({ ...f, username: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                placeholder="mis. fajar.nugroho"
+                className="py-[11px]"
+              />
+            </Field>
+            <Field label="Email (opsional)">
               <Input type="email" value={f.email} maxLength={160} onChange={(e) => setF({ ...f, email: e.target.value })} className="py-[11px]" />
             </Field>
             <Field label="Peran">
@@ -200,7 +223,9 @@ function PenggunaModal({ pengguna, onClose }: { pengguna: Pengguna | null; onClo
               />
             </Field>
           </div>
-          <div className="text-xs text-ink-muted">{DESKRIPSI_PERAN[f.peran]}</div>
+          <div className="text-xs text-ink-muted">
+            {DESKRIPSI_PERAN[f.peran]}. Username dipakai untuk masuk: huruf kecil, angka, titik, garis bawah, atau tanda hubung (3–32 karakter).
+          </div>
           <Field label="Tanggung jawab">
             <TextArea rows={2} maxLength={255} value={f.tanggungJawab} onChange={(e) => setF({ ...f, tanggungJawab: e.target.value })} className="py-[11px]" />
           </Field>
@@ -210,7 +235,20 @@ function PenggunaModal({ pengguna, onClose }: { pengguna: Pengguna | null; onClo
               Akun aktif (pengguna nonaktif tidak dapat masuk)
             </label>
           )}
-          <PesanGalat>{simpan.error ? (galat.email ?? galat.kataSandi ?? galat.nama ?? errorMessage(simpan.error)) : ''}</PesanGalat>
+          {pengguna && !diriSendiri && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line-soft px-3.5 py-3 text-[13px]">
+              <span className="flex flex-1 items-center gap-2 text-ink-body">
+                <Icon name="shield" size={16} stroke={mfaAktif ? '#1E9E63' : '#7A869A'} />
+                {mfaAktif ? 'Verifikasi dua langkah aktif' : 'Verifikasi dua langkah belum aktif'}
+              </span>
+              {mfaAktif && (
+                <Button variant="secondary" onClick={() => setKonfirmasiMfa(true)} className="border-danger-dash px-3 py-1.5 text-xs text-danger-ink hover:border-danger">
+                  Reset MFA
+                </Button>
+              )}
+            </div>
+          )}
+          <PesanGalat>{simpan.error ? (galat.username ?? galat.email ?? galat.kataSandi ?? galat.nama ?? errorMessage(simpan.error)) : ''}</PesanGalat>
           <div className="flex justify-end gap-2.5">
             <Button variant="secondary" onClick={onClose} className="px-[18px] py-[11px] text-sm">
               Batal
@@ -219,6 +257,30 @@ function PenggunaModal({ pengguna, onClose }: { pengguna: Pengguna | null; onClo
               Simpan
             </Button>
           </div>
+          {konfirmasiMfa && pengguna && (
+            <Konfirmasi
+              judul="Reset verifikasi dua langkah?"
+              pesan={
+                <>
+                  MFA milik <b>{pengguna.nama}</b> dimatikan dan semua sesinya diakhiri. Lakukan hanya bila ponselnya hilang atau berganti. Bila organisasi
+                  mewajibkan MFA, ia akan diminta memasang ulang saat masuk berikutnya.
+                </>
+              }
+              label="Reset MFA"
+              memproses={resetMfa.isPending}
+              galat={resetMfa.error}
+              onBatal={() => setKonfirmasiMfa(false)}
+              onKonfirmasi={() =>
+                resetMfa.mutate(pengguna.id, {
+                  onSuccess: () => {
+                    setMfaAktif(false);
+                    setKonfirmasiMfa(false);
+                    toast(`MFA ${pengguna.nama} direset`);
+                  },
+                })
+              }
+            />
+          )}
         </form>
       )}
     </Modal>
@@ -248,9 +310,16 @@ function TabPengguna() {
           <Inisial nama={u.nama} warna={warnaAvatar(i)} className="size-[38px] rounded-full text-xs" />
           <span className="flex min-w-40 flex-1 flex-col gap-0.5">
             <span className="text-sm font-semibold text-navy">{u.nama}</span>
-            <span className="text-xs text-ink-muted">{u.email}</span>
+            <span className="text-xs text-ink-muted">
+              @{u.username}
+              {u.email ? ` · ${u.email}` : ''}
+            </span>
           </span>
           <span className="w-[110px] text-[13px] text-ink-label">{LABEL_PERAN[u.peran]}</span>
+          <span className={cx('flex w-[86px] items-center gap-1 text-xs', u.mfaAktif ? 'text-success-ink' : 'text-ink-subtle')}>
+            <Icon name="shield" size={13} />
+            {u.mfaAktif ? 'MFA' : 'Tanpa MFA'}
+          </span>
           <span className={cx('w-[120px] text-xs', u.tandaTangan ? 'text-success-ink' : 'text-ink-subtle')}>{u.tandaTangan ? '✓ Tanda tangan' : 'Belum ada TTD'}</span>
           <Badge status={u.aktif ? 'Aktif' : 'Nonaktif'} className="px-2.5 py-[3px]" />
         </button>
@@ -295,15 +364,16 @@ function GrupChip({ judul, warna, items, jenisMaster, jenis }: { judul: string; 
         {items.map((k) => (
           <span key={k.id} className={cx('flex items-center gap-1.5 rounded-full py-2 pr-2.5 pl-3.5 text-[13px] font-semibold', w.chip)}>
             {k.nama}
-            <button
-              type="button"
-              aria-label={`Hapus ${k.nama}`}
-              title="Hapus (hanya bila belum dipakai)"
-              onClick={() => hapus.mutate({ jenisMaster, id: k.id }, { onSuccess: () => toast(`“${k.nama}” dihapus`), onError: (x) => toast(errorMessage(x)) })}
-              className="flex size-4 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 text-sm leading-none opacity-60 hover:opacity-100"
-            >
-              ×
-            </button>
+            <Tip label="Hapus (hanya bila belum dipakai)">
+              <button
+                type="button"
+                aria-label={`Hapus ${k.nama}`}
+                onClick={() => hapus.mutate({ jenisMaster, id: k.id }, { onSuccess: () => toast(`“${k.nama}” dihapus`), onError: (x) => toast(errorMessage(x)) })}
+                className="flex size-4 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 text-sm leading-none opacity-60 hover:opacity-100"
+              >
+                ×
+              </button>
+            </Tip>
           </span>
         ))}
         {baru === null ? (
@@ -315,7 +385,7 @@ function GrupChip({ judul, warna, items, jenisMaster, jenis }: { judul: string; 
             + Tambah
           </button>
         ) : (
-          <form onSubmit={kirim} className="flex items-center gap-1.5">
+          <form onSubmit={kirim} noValidate className="flex items-center gap-1.5">
             <Input autoFocus value={baru} maxLength={60} onChange={(e) => setBaru(e.target.value)} aria-label={`Nama ${judul.toLowerCase()} baru`} className="w-44 rounded-full px-3.5 py-2 text-[13px]" />
             <Button type="submit" disabled={tambah.isPending} className="rounded-full px-3.5 py-2 text-[13px]">
               Simpan
@@ -516,6 +586,63 @@ function TabNotif() {
   );
 }
 
+/* ---------- Keamanan ---------- */
+
+function TabKeamanan() {
+  const q = useOrganisasi();
+  const me = useMe().data;
+  const ubah = useUbahKeamanan();
+  const toast = useToast();
+  const [, setParams] = useSearchParams();
+  if (q.isPending) return <Memuat />;
+  if (q.isError || !q.data) return <GagalMemuat error={q.error} onRetry={() => void q.refetch()} />;
+  const on = q.data.wajibMfa;
+  const adminSiap = me?.mfa.aktif ?? false;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Judul className="mb-2.5">Keamanan</Judul>
+      <div className="flex items-center gap-4 border-t border-line-soft py-3.5">
+        <span className="flex flex-1 flex-col gap-[3px]">
+          <span className="text-sm font-semibold text-navy" id="wajib-mfa">
+            Wajibkan verifikasi dua langkah (MFA)
+          </span>
+          <span className="text-[13px] leading-normal text-ink-muted">
+            Semua pengguna harus memasukkan kode Google Authenticator saat masuk. Pengguna yang belum memasang akan diminta memasangnya sebelum bisa memakai
+            aplikasi.
+          </span>
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-labelledby="wajib-mfa"
+          disabled={ubah.isPending || (!on && !adminSiap)}
+          onClick={() =>
+            ubah.mutate(
+              { wajibMfa: !on },
+              { onSuccess: () => toast(on ? 'MFA tidak lagi diwajibkan' : 'MFA kini wajib untuk semua pengguna'), onError: (x) => toast(errorMessage(x)) },
+            )
+          }
+          className={cx('relative h-[26px] w-11 flex-none cursor-pointer rounded-full border-none transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-50', on ? 'bg-primary' : 'bg-track')}
+        >
+          <span className={cx('absolute top-[3px] size-5 rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,.2)] transition-[left] duration-200', on ? 'left-5' : 'left-0.5')} />
+        </button>
+      </div>
+      {!adminSiap && !on && (
+        <div className="rounded-xl bg-primary-bg px-3.5 py-[11px] text-[13px] leading-normal text-primary-hover">
+          Aktifkan dulu verifikasi dua langkah di akun Anda sendiri agar tidak terkunci.{' '}
+          <button type="button" onClick={() => setParams({ tab: 'akun' }, { replace: true })} className="cursor-pointer border-none bg-transparent p-0 font-bold text-primary underline">
+            Buka Akun Saya
+          </button>
+        </div>
+      )}
+      <div className="text-xs leading-normal text-ink-muted">
+        Pengguna yang kehilangan ponsel bisa masuk dengan kode pemulihan, atau MFA-nya direset admin lewat Pengaturan › Pengguna.
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Akun saya ---------- */
 
 function TabAkun() {
@@ -547,14 +674,18 @@ function TabAkun() {
           <div className="flex flex-col gap-0.5">
             <span className="text-[15px] font-bold text-navy">{me.nama}</span>
             <span className="text-[13px] text-ink-muted">
-              {me.email} · {LABEL_PERAN[me.peran]}
+              @{me.username}
+              {me.email ? ` · ${me.email}` : ''} · {LABEL_PERAN[me.peran]}
             </span>
           </div>
         </div>
       )}
       <TandaTanganSaya />
+      <MfaSaya />
       <form onSubmit={kirim} noValidate className="flex max-w-[420px] flex-col gap-3.5 border-t border-line-soft pt-5">
         <div className="text-[13px] font-bold text-navy">Ganti kata sandi</div>
+        {/* Untuk pengelola kata sandi: kata sandi baru disimpan pada username yang benar. */}
+        <input type="text" name="username" autoComplete="username" value={me?.username ?? ''} readOnly hidden />
         {(
           [
             ['lama', 'Kata sandi saat ini', 'current-password'],
@@ -594,7 +725,7 @@ export function PengaturanPage() {
     <div className="flex animate-fade-up flex-col gap-[22px]">
       <div>
         <h1 className="m-0 font-display text-[32px] font-bold tracking-[-.02em] text-navy">Pengaturan</h1>
-        <div className="mt-1.5 text-sm text-ink-slate">Atur profil organisasi, pengguna, kategori, dan notifikasi.</div>
+        <div className="mt-1.5 text-sm text-ink-slate">Atur profil organisasi, pengguna, kategori, notifikasi, dan keamanan.</div>
       </div>
       <div className="flex flex-wrap items-start gap-5">
         <nav aria-label="Bagian pengaturan" className="flex w-60 max-w-full flex-col gap-1 rounded-[18px] border border-line bg-white p-2.5 max-lap:w-full">
@@ -617,6 +748,7 @@ export function PengaturanPage() {
           {tab === 'kategori' && <TabKategori />}
           {tab === 'event' && <TabEvent />}
           {tab === 'notif' && <TabNotif />}
+          {tab === 'keamanan' && <TabKeamanan />}
           {tab === 'akun' && <TabAkun />}
         </div>
       </div>

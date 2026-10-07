@@ -5,6 +5,9 @@ import { env } from '../env.js';
 export const ACCESS_COOKIE = 'sk_access';
 export const REFRESH_COOKIE = 'sk_refresh';
 export const CSRF_COOKIE = 'sk_csrf';
+/** Tiket singkat antara kata sandi benar dan kode MFA; belum berupa sesi. */
+export const MFA_COOKIE = 'sk_mfa';
+const MFA_TTL_DETIK = 10 * 60;
 
 const ISSUER = 'sekar';
 
@@ -77,4 +80,34 @@ export function clearAuthCookies(res: Response): void {
 export function csrfCookieOptions(): CookieOptions {
   // Sengaja tidak httpOnly: client membaca nilainya lalu mengirim ulang di header (double-submit).
   return { httpOnly: false, secure: env.cookieSecure, sameSite: 'strict', path: '/' };
+}
+
+/** `verifikasi`: pengguna sudah punya MFA. `pasang`: organisasi mewajibkan MFA, pengguna belum memasang. */
+export type TujuanMfa = 'verifikasi' | 'pasang';
+
+export interface TiketMfa extends VerifiedToken {
+  tujuan: TujuanMfa;
+}
+
+export function setMfaCookie(res: Response, user: TokenSubject, ingat: boolean, tujuan: TujuanMfa): void {
+  const token = jwt.sign({ tv: user.tokenVersion, rm: ingat, tj: tujuan }, env.JWT_ACCESS_SECRET, {
+    algorithm: 'HS256',
+    subject: String(user.id),
+    issuer: ISSUER,
+    audience: 'mfa',
+    expiresIn: MFA_TTL_DETIK,
+  });
+  res.cookie(MFA_COOKIE, token, { ...baseCookie(), path: '/api/auth', maxAge: MFA_TTL_DETIK * 1000 });
+}
+
+export function verifyMfaToken(token: unknown): TiketMfa | null {
+  if (typeof token !== 'string' || !token) return null;
+  const hasil = verify(token, env.JWT_ACCESS_SECRET, 'mfa');
+  if (typeof hasil !== 'object') return null;
+  const tujuan = (jwt.decode(token) as { tj?: unknown } | null)?.tj;
+  return tujuan === 'verifikasi' || tujuan === 'pasang' ? { ...hasil, tujuan } : null;
+}
+
+export function clearMfaCookie(res: Response): void {
+  res.clearCookie(MFA_COOKIE, { ...baseCookie(), path: '/api/auth' });
 }

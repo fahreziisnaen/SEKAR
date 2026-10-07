@@ -1,9 +1,11 @@
-import { queryOptions, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { keepPreviousData, queryOptions, useMutation, useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { api, ApiError, keFormData } from '../lib/api';
+import { api, ApiError, keFormData, kirimBerkas, type OnProgres } from '../lib/api';
 import { hariIni } from '../lib/tanggal';
 import type {
   BarisRekap,
+  DataPasangMfa,
   Dokumen,
   EventDetail,
   EventRingkas,
@@ -18,6 +20,7 @@ import type {
   Peserta,
   SessionUser,
   StatusDokumen,
+  StatusMfa,
   TemplateEvent,
   Transaksi,
   Tugas,
@@ -49,16 +52,71 @@ export function useIzin(): (izin: Izin) => boolean {
   return (izin) => data?.izin.includes(izin) ?? false;
 }
 
+function mulaiSesi(qc: QueryClient, user: SessionUser) {
+  keluarManual = false;
+  qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
+  qc.setQueryData(meQuery.queryKey, user);
+}
+
+/** Menandai sesi dimulai (setelah langkah MFA selesai); halaman login lalu mengarahkan ke aplikasi. */
+export function useMasukSesi(): (user: SessionUser) => void {
+  const qc = useQueryClient();
+  return (user) => mulaiSesi(qc, user);
+}
+
+/** `langkah`: kata sandi benar, tetapi akun butuh kode MFA ('mfa') atau wajib memasangnya ('pasang-mfa'). */
+export type HasilLogin = { user: SessionUser } | { langkah: 'mfa' | 'pasang-mfa' };
+
 export function useLogin() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { email: string; password: string; ingat: boolean }) => api<{ user: SessionUser }>('/auth/login', { method: 'POST', body: input }),
-    onSuccess: ({ user }) => {
-      keluarManual = false;
-      qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
-      qc.setQueryData(meQuery.queryKey, user);
+    mutationFn: (input: { username: string; password: string; ingat: boolean }) => api<HasilLogin>('/auth/login', { method: 'POST', body: input }),
+    onSuccess: (hasil) => {
+      if ('user' in hasil) mulaiSesi(qc, hasil.user);
     },
   });
+}
+
+/** Langkah kode MFA saat login. Sesi dimulai oleh pemanggil lewat `useMasukSesi`. */
+export function useVerifikasiMfaLogin() {
+  return useMutation({
+    mutationFn: (kode: string) => api<{ user: SessionUser; sisaKodePemulihan?: number }>('/auth/login/mfa', { method: 'POST', body: { kode } }),
+  });
+}
+
+/** Pemasangan MFA saat login (organisasi mewajibkan, pengguna belum memasang). */
+export const pasangMfaLogin = {
+  mulai: () => api<DataPasangMfa>('/auth/login/mfa/pasang', { method: 'POST' }),
+  aktifkan: (kode: string) => api<{ user: SessionUser; kodePemulihan: string[] }>('/auth/login/mfa/aktifkan', { method: 'POST', body: { kode } }),
+};
+
+/** Pemasangan MFA untuk sesi yang sudah masuk (Akun Saya, atau layar MFA wajib). */
+export const pasangMfaSesi = {
+  mulai: () => api<DataPasangMfa>('/auth/mfa/pasang', { method: 'POST' }),
+  aktifkan: async (kode: string) => (await api<{ kodePemulihan: string[] }>('/auth/mfa/aktifkan', { method: 'POST', body: { kode } })).kodePemulihan,
+};
+
+const KEY_MFA: QueryKey[] = [['me'], ['mfa'], ['pengguna']];
+
+export function useStatusMfa() {
+  return useQuery({ queryKey: ['mfa'], queryFn: () => api<StatusMfa>('/auth/mfa') });
+}
+
+/** Dipanggil setelah pemasangan selesai (kode pemulihan sudah ditampilkan). */
+export function useMfaBerubah(): () => Promise<unknown> {
+  const qc = useQueryClient();
+  return () => Promise.all(KEY_MFA.map((queryKey) => qc.invalidateQueries({ queryKey })));
+}
+
+export function useNonaktifkanMfa() {
+  return useMutasi((input: { kataSandi: string; kode: string }) => api<void>('/auth/mfa/nonaktifkan', { method: 'POST', body: input }), KEY_MFA);
+}
+
+export function useBuatUlangKodePemulihan() {
+  return useMutasi(
+    async (kode: string) => (await api<{ kodePemulihan: string[] }>('/auth/mfa/kode-pemulihan', { method: 'POST', body: { kode } })).kodePemulihan,
+    [['mfa']],
+  );
 }
 
 let keluarManual = false;
@@ -90,7 +148,10 @@ export function useLogout() {
 const KEY_TTD: QueryKey[] = [['me'], ['pengguna'], ['event']];
 
 export function useUnggahTandaTangan() {
-  return useMutasi((file: File) => api<{ tandaTangan: string }>('/auth/tanda-tangan', { method: 'PUT', body: keFormData({ file }) }), KEY_TTD);
+  return useMutasiUnggah(
+    (file: File, onProgres) => kirimBerkas<{ tandaTangan: string }>('/auth/tanda-tangan', keFormData({ file }), { method: 'PUT', onProgres }),
+    KEY_TTD,
+  );
 }
 
 export function useHapusTandaTangan() {
@@ -110,6 +171,15 @@ export function useGantiSandi() {
 
 export function useInfo() {
   return useQuery({ queryKey: ['info'], queryFn: () => api<InfoAplikasi>('/info'), staleTime: Infinity });
+}
+
+/**
+ * Pesan galat bila berkas melebihi batas unggah server, agar berkas besar ditolak sebelum
+ * dikirim (bukan setelah menunggu progres sampai 100%).
+ */
+export function useCekUkuranBerkas(): (file: File) => string {
+  const mb = useInfo().data?.maksUnggahMb;
+  return (file) => (mb && file.size > mb * 1024 * 1024 ? `Ukuran berkas maksimal ${mb} MB (berkas ini ${(file.size / 1024 / 1024).toFixed(1)} MB).` : '');
 }
 
 /** "Hari ini" menurut zona waktu aplikasi yang dikonfigurasi di server. */
@@ -137,6 +207,24 @@ function useMutasi<TInput, TOutput>(fn: (input: TInput) => Promise<TOutput>, key
   });
 }
 
+/**
+ * Seperti `useMutasi`, ditambah `progres` unggah (0–100) selama berkas dikirim; `null` bila
+ * tidak sedang mengunggah. Setelah 100%, server masih memproses sampai mutasi selesai.
+ */
+function useMutasiUnggah<TInput, TOutput>(fn: (input: TInput, onProgres: OnProgres) => Promise<TOutput>, keys: QueryKey[]) {
+  const qc = useQueryClient();
+  const [progres, setProgres] = useState<number | null>(null);
+  const mutasi = useMutation({
+    mutationFn: (input: TInput) => {
+      setProgres(0);
+      return fn(input, setProgres);
+    },
+    onSuccess: () => Promise.all(keys.map((queryKey) => qc.invalidateQueries({ queryKey }))),
+    onSettled: () => setProgres(null),
+  });
+  return { ...mutasi, progres };
+}
+
 const KEY_ORG: QueryKey[] = [['organisasi'], ['organisasi-publik'], ['notifikasi']];
 
 export function useSimpanOrganisasi() {
@@ -151,7 +239,12 @@ export function useUbahNotifikasi() {
 }
 
 export function useUnggahLogo() {
-  return useMutasi((file: File) => api('/organisasi/logo', { method: 'POST', body: keFormData({ file }) }), KEY_ORG);
+  return useMutasiUnggah((file: File, onProgres) => kirimBerkas('/organisasi/logo', keFormData({ file }), { onProgres }), KEY_ORG);
+}
+
+/** Mewajibkan MFA untuk semua pengguna organisasi. */
+export function useUbahKeamanan() {
+  return useMutasi((input: { wajibMfa: boolean }) => api('/organisasi/keamanan', { method: 'PATCH', body: input }), [...KEY_ORG, ['me']]);
 }
 
 export function useHapusLogo() {
@@ -192,13 +285,18 @@ export function usePengguna() {
   return useQuery({ queryKey: ['pengguna'], queryFn: async () => (await api<{ pengguna: Pengguna[] }>('/pengguna')).pengguna });
 }
 
-export type InputPengguna = Omit<Pengguna, 'id' | 'aktif' | 'tandaTangan'> & { aktif?: boolean; kataSandi?: string };
+export type InputPengguna = Omit<Pengguna, 'id' | 'aktif' | 'tandaTangan' | 'mfaAktif'> & { aktif?: boolean; kataSandi?: string };
 
 export function useSimpanPengguna() {
   return useMutasi(
     ({ id, ...body }: InputPengguna & { id?: number }) => api(id ? `/pengguna/${id}` : '/pengguna', { method: id ? 'PUT' : 'POST', body }),
     [['pengguna'], ['event'], ['me']],
   );
+}
+
+/** Admin mematikan MFA pengguna lain (mis. ponsel hilang); sesi pengguna itu dicabut. */
+export function useResetMfaPengguna() {
+  return useMutasi((id: number) => api<{ pengguna: Pengguna }>(`/pengguna/${id}/mfa`, { method: 'DELETE' }), [['pengguna']]);
 }
 
 /* ---------- Event ---------- */
@@ -268,6 +366,9 @@ export function useTransaksi(eventId: number | undefined, rentang: { dari: strin
     queryKey: ['event', eventId, 'transaksi', qs],
     queryFn: async () => (await api<{ transaksi: Transaksi[] }>(`/event/${eventId}/transaksi${qs ? `?${qs}` : ''}`)).transaksi,
     enabled: Boolean(eventId),
+    // Ganti periode: data lama tetap tampil sampai data baru siap. Ganti event: jangan, agar
+    // transaksi event lain tidak sempat tampil di bawah judul event yang baru.
+    placeholderData: (lama, queryLama) => (queryLama?.queryKey[1] === eventId ? lama : undefined),
   });
 }
 
@@ -288,9 +389,9 @@ export interface InputTransaksi {
 }
 
 export function useTambahTransaksi() {
-  return useMutasi(
-    async ({ eventId, bukti, ...f }: InputTransaksi) =>
-      (await api<{ transaksi: Transaksi }>(`/event/${eventId}/transaksi`, { method: 'POST', body: keFormData({ ...f, file: bukti }) })).transaksi,
+  return useMutasiUnggah(
+    async ({ eventId, bukti, ...f }: InputTransaksi, onProgres) =>
+      (await kirimBerkas<{ transaksi: Transaksi }>(`/event/${eventId}/transaksi`, keFormData({ ...f, file: bukti }), { onProgres })).transaksi,
     KEY_EVENT,
   );
 }
@@ -346,9 +447,9 @@ export function useDokumen(eventId: number | undefined) {
 }
 
 export function useUnggahDokumen() {
-  return useMutasi(
-    async ({ eventId, file, ...f }: { eventId: number; nama: string; jenisId: number; file: File }) =>
-      (await api<{ dokumen: Dokumen }>(`/event/${eventId}/dokumen`, { method: 'POST', body: keFormData({ ...f, file }) })).dokumen,
+  return useMutasiUnggah(
+    async ({ eventId, file, ...f }: { eventId: number; nama: string; jenisId: number; file: File }, onProgres) =>
+      (await kirimBerkas<{ dokumen: Dokumen }>(`/event/${eventId}/dokumen`, keFormData({ ...f, file }), { onProgres })).dokumen,
     [['event']],
   );
 }
@@ -423,6 +524,7 @@ export function useRekap(query: string | null) {
     queryKey: ['rekap', query],
     queryFn: async () => (await api<{ rekap: BarisRekap[] }>(`/laporan/rekap${query}`)).rekap,
     enabled: query !== null,
+    placeholderData: keepPreviousData,
   });
 }
 

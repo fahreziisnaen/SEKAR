@@ -6,9 +6,9 @@ beforeEach(resetDatabase);
 
 describe('tanda tangan pengguna', () => {
   it('pengguna mengunggah tanda tangan sendiri; versinya muncul di sesi, daftar pengguna, PIC, dan pencatat transaksi', async () => {
-    const admin = await createUser('admin@uji.id');
+    const admin = await createUser('admin');
     const m = await createMaster();
-    const sesi = await loginAs('admin@uji.id');
+    const sesi = await loginAs('admin');
 
     const naik = await sesi.agent.put('/api/auth/tanda-tangan').set('x-csrf-token', sesi.token).attach('file', PNG, 'ttd.png');
     expect(naik.status).toBe(200);
@@ -34,22 +34,22 @@ describe('tanda tangan pengguna', () => {
   });
 
   it('pengguna lain dapat memuat tanda tangan untuk bukti, tetapi tidak bisa menggantinya', async () => {
-    const pic = await createUser('pic@uji.id', 'anggota');
-    await createUser('bendahara@uji.id', 'bendahara');
-    const sesiPic = await loginAs('pic@uji.id');
+    const pic = await createUser('pic', 'anggota');
+    await createUser('bendahara', 'bendahara');
+    const sesiPic = await loginAs('pic');
     await sesiPic.agent.put('/api/auth/tanda-tangan').set('x-csrf-token', sesiPic.token).attach('file', PNG, 'ttd.png');
 
-    const lain = await loginAs('bendahara@uji.id');
+    const lain = await loginAs('bendahara');
     expect((await lain.agent.get(`/api/pengguna/${pic.id}/tanda-tangan`)).status).toBe(200);
     // Endpoint unggah selalu untuk akun sendiri: milik PIC tidak berubah.
     await lain.agent.put('/api/auth/tanda-tangan').set('x-csrf-token', lain.token).attach('file', PNG, 'ttd-lain.png');
-    const daftar = (await lain.agent.get('/api/pengguna')).body.pengguna as { email: string; tandaTangan: string | null }[];
-    expect(daftar.find((p) => p.email === 'pic@uji.id')!.tandaTangan).toBe((await sesiPic.agent.get('/api/auth/me')).body.user.tandaTangan);
+    const daftar = (await lain.agent.get('/api/pengguna')).body.pengguna as { username: string; tandaTangan: string | null }[];
+    expect(daftar.find((p) => p.username === 'pic')!.tandaTangan).toBe((await sesiPic.agent.get('/api/auth/me')).body.user.tandaTangan);
   });
 
   it('menolak berkas bukan gambar dan menghapus tanda tangan', async () => {
-    const admin = await createUser('admin@uji.id');
-    const sesi = await loginAs('admin@uji.id');
+    const admin = await createUser('admin');
+    const sesi = await loginAs('admin');
     const pdf = await sesi.agent.put('/api/auth/tanda-tangan').set('x-csrf-token', sesi.token).attach('file', Buffer.from('%PDF-1.4'), 'ttd.png');
     expect(pdf.status).toBe(400);
     expect(pdf.body.message).toMatch(/JPG, PNG, atau WEBP/);

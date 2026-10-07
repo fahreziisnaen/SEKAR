@@ -14,6 +14,8 @@ const schema = z
     DATABASE_URL: z.string().min(1, 'DATABASE_URL wajib diisi'),
     JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET minimal 32 karakter'),
     JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET minimal 32 karakter'),
+    /** Kunci AES-256 untuk rahasia MFA di database: 64 karakter hex (openssl rand -hex 32). */
+    MFA_ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/, 'MFA_ENCRYPTION_KEY wajib 64 karakter hex (buat dengan: openssl rand -hex 32)'),
     ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().positive().default(15),
     /** Masa berlaku sesi "Ingat saya". Tanpa centang, sesi berakhir saat browser ditutup. */
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(14),
@@ -38,6 +40,10 @@ const schema = z
   .refine((e) => e.JWT_ACCESS_SECRET !== e.JWT_REFRESH_SECRET, {
     message: 'JWT_ACCESS_SECRET dan JWT_REFRESH_SECRET harus berbeda',
     path: ['JWT_REFRESH_SECRET'],
+  })
+  .refine((e) => ![e.JWT_ACCESS_SECRET, e.JWT_REFRESH_SECRET].includes(e.MFA_ENCRYPTION_KEY), {
+    message: 'MFA_ENCRYPTION_KEY harus berbeda dari rahasia JWT',
+    path: ['MFA_ENCRYPTION_KEY'],
   });
 
 const parsed = schema.safeParse(process.env);

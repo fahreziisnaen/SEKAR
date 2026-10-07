@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import { Icon } from '../../components/icons';
+import { InputTanggal } from '../../components/InputTanggal';
 import { Modal, TombolTutup } from '../../components/Modal';
 import { useOverlays } from '../../components/Overlays';
 import { PesanGalat } from '../../components/Status';
 import { useToast } from '../../components/Toast';
 import { Button, Field, Input, MoneyInput, Select, TextArea, cx } from '../../components/ui';
-import { useEvents, useHariIni, useMaster, useTambahTransaksi } from '../../hooks/queries';
+import { labelUnggah, ProgresUnggah } from '../../components/ProgresUnggah';
+import { useCekUkuranBerkas, useEvents, useHariIni, useMaster, useTambahTransaksi } from '../../hooks/queries';
 import { errorMessage } from '../../lib/api';
 import { rupiah } from '../../lib/format';
 import type { JenisTransaksi } from '../../types';
@@ -16,6 +18,7 @@ export function TransaksiModal({ eventId, onClose }: { eventId: number; onClose:
   const master = useMaster();
   const events = useEvents();
   const simpan = useTambahTransaksi();
+  const cekUkuran = useCekUkuranBerkas();
   const { lihatBukti } = useOverlays();
   const fileRef = useRef<HTMLInputElement>(null);
   const [f, setF] = useState({
@@ -53,6 +56,7 @@ export function TransaksiModal({ eventId, onClose }: { eventId: number; onClose:
     if (!kategoriId || !metodeId) return setErr('Kategori dan metode pembayaran belum tersedia. Tambahkan di menu Pengaturan.');
     if (isIn && !f.pihak.trim()) return setErr('Pemberi dana (Diterima dari) wajib diisi untuk pemasukan.');
     if (!f.ket.trim() || !nom) return setErr('Deskripsi dan nominal wajib diisi.');
+    if (bukti && cekUkuran(bukti)) return setErr(cekUkuran(bukti));
     simpan.mutate(
       {
         eventId: f.ev,
@@ -151,7 +155,7 @@ export function TransaksiModal({ eventId, onClose }: { eventId: number; onClose:
                 </Select>
               </Field>
               <Field label="Tanggal">
-                <Input type="date" value={f.tgl} onChange={(e) => ubah({ tgl: e.target.value })} className="px-3 py-2.5" />
+                <InputTanggal value={f.tgl} onChange={(tgl) => ubah({ tgl })} />
               </Field>
               <Field label="Kategori">
                 <Select value={kategoriId} onChange={(e) => ubah({ kategoriId: Number(e.target.value) })} className="px-3">
@@ -214,14 +218,15 @@ export function TransaksiModal({ eventId, onClose }: { eventId: number; onClose:
             <Field label="Catatan">
               <TextArea rows={2} maxLength={500} value={f.catatan} onChange={(e) => ubah({ catatan: e.target.value })} placeholder="Opsional" className="py-[11px]" />
             </Field>
+            {bukti && <ProgresUnggah progres={simpan.progres} nama={bukti.name} />}
             <PesanGalat>{err}</PesanGalat>
           </div>
           <div className="flex justify-end gap-2.5 border-t border-line-soft px-[26px] py-[18px]">
-            <Button variant="secondary" onClick={onClose} className="px-[18px] py-[11px] text-sm">
+            <Button variant="secondary" onClick={onClose} disabled={simpan.isPending} className="px-[18px] py-[11px] text-sm disabled:opacity-50">
               Batal
             </Button>
             <Button onClick={kirim} disabled={simpan.isPending} className="px-5 py-[11px] text-sm disabled:opacity-60">
-              {simpan.isPending ? 'Menyimpan…' : isIn ? 'Simpan Pemasukan' : 'Simpan Pengeluaran'}
+              {simpan.isPending ? labelUnggah(bukti ? simpan.progres : null, 'Menyimpan…') : isIn ? 'Simpan Pemasukan' : 'Simpan Pengeluaran'}
             </Button>
           </div>
         </div>

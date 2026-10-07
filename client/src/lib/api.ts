@@ -37,7 +37,12 @@ export function fieldErrors(error: unknown): Record<string, string> {
 }
 
 const CSRF_COOKIE = 'sk_csrf';
-const NO_REFRESH = new Set(['/auth/login', '/auth/refresh', '/auth/logout', '/auth/csrf']);
+const NO_REFRESH = new Set(['/auth/refresh', '/auth/logout', '/auth/csrf']);
+
+/** 401 dari langkah login (kata sandi / MFA) berarti kredensial salah, bukan sesi kedaluwarsa. */
+function bolehRefresh(path: string): boolean {
+  return !NO_REFRESH.has(path) && !path.startsWith('/auth/login');
+}
 
 function readCookie(name: string): string | undefined {
   const entry = document.cookie.split('; ').find((part) => part.startsWith(`${name}=`));
@@ -150,7 +155,7 @@ export async function api<T>(path: string, options: RequestOptions = {}, isRetry
 
   const data = res.status === 204 ? null : await res.json().catch(() => null);
 
-  if (!isRetry && res.status === 401 && !NO_REFRESH.has(path) && (await refreshSession())) {
+  if (!isRetry && res.status === 401 && bolehRefresh(path) && (await refreshSession())) {
     return api<T>(path, options, true);
   }
   if (!isRetry && res.status === 403 && data?.code === 'CSRF_INVALID') {
@@ -161,6 +166,59 @@ export async function api<T>(path: string, options: RequestOptions = {}, isRetry
     const message = data?.message ?? DEFAULT_MESSAGES[res.status] ?? SERVER_ERROR;
     throw new ApiError(res.status, message, data?.code, data?.details);
   }
+  return data as T;
+}
+
+export type OnProgres = (persen: number) => void;
+
+function kirimXhr(method: string, path: string, body: FormData, token: string, onProgres?: OnProgres): Promise<{ status: number; data: any }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, `/api${path}`);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('X-CSRF-Token', token);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) onProgres?.(Math.min(100, Math.round((e.loaded / e.total) * 100)));
+    };
+    xhr.onload = () => {
+      let data = null;
+      try {
+        data = xhr.status === 204 || !xhr.responseText ? null : JSON.parse(xhr.responseText);
+      } catch {
+        data = null;
+      }
+      resolve({ status: xhr.status, data });
+    };
+    xhr.onerror = () => reject(new ApiError(0, DEFAULT_MESSAGES[0]!, 'NETWORK_ERROR'));
+    xhr.onabort = () => reject(new ApiError(0, 'Unggahan dibatalkan.', 'ABORTED'));
+    xhr.send(body);
+  });
+}
+
+/**
+ * Mengirim berkas (FormData) dengan laporan progres unggah. Memakai XHR karena `fetch` belum
+ * bisa melaporkan progres unggah; aturan sesi, CSRF, dan galat sama dengan `api()`.
+ */
+export async function kirimBerkas<T>(
+  path: string,
+  body: FormData,
+  { method = 'POST', onProgres }: { method?: 'POST' | 'PUT'; onProgres?: OnProgres } = {},
+  isRetry = false,
+): Promise<T> {
+  const { status, data } = await kirimXhr(method, path, body, await csrfToken(), onProgres);
+  if (!isRetry && status === 401 && bolehRefresh(path) && (await refreshSession())) {
+    onProgres?.(0);
+    return kirimBerkas<T>(path, body, { method, onProgres }, true);
+  }
+  if (!isRetry && status === 403 && data?.code === 'CSRF_INVALID') {
+    await csrfToken(true);
+    onProgres?.(0);
+    return kirimBerkas<T>(path, body, { method, onProgres }, true);
+  }
+  if (status < 200 || status >= 300) {
+    throw new ApiError(status, data?.message ?? DEFAULT_MESSAGES[status] ?? SERVER_ERROR, data?.code, data?.details);
+  }
+  onProgres?.(100);
   return data as T;
 }
 

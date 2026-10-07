@@ -44,7 +44,7 @@ function Meta({ icon, children }: { icon: NamaIkon; children: string }) {
 /** Tab keuangan & laporan memuat seluruh transaksi event. */
 function KeuanganEvent({ event: e, laporan }: { event: EventDetail; laporan: boolean }) {
   const tx = useTransaksi(e.id);
-  if (tx.isPending) return <Memuat />;
+  if (tx.isPending) return <Memuat varian="kartu" />;
   if (tx.isError) return <GagalMemuat error={tx.error} onRetry={() => void tx.refetch()} />;
   const r = ringkas(tx.data);
   if (laporan) return <LaporanKeuangan event={e} r={r} jenis="keuangan" />;
@@ -161,7 +161,7 @@ export function EventDetailPage() {
   }, [q.data, aktif?.id, pilih]);
 
   if (!TAB.some(([k]) => k === tab)) return <Navigate to={`/event/${params.eventId}`} replace />;
-  if (q.isPending && q.fetchStatus !== 'idle') return <Memuat />;
+  if (q.isPending && q.fetchStatus !== 'idle') return <Memuat varian="detail" />;
   if (q.isError && !(q.error instanceof ApiError && q.error.status === 404)) return <GagalMemuat error={q.error} onRetry={() => void q.refetch()} />;
   if (!q.data)
     return (

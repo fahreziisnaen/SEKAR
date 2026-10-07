@@ -23,13 +23,14 @@ export async function resetDatabase() {
   await prisma.kategoriKeuangan.deleteMany();
   await prisma.metodePembayaran.deleteMany();
   await prisma.jenisDokumen.deleteMany();
+  await prisma.kodePemulihan.deleteMany();
   await prisma.pengguna.deleteMany();
   await prisma.organisasi.deleteMany();
 }
 
-export async function createUser(email: string, peran: Peran = 'admin', nama = `Pengguna ${email.split('@')[0]}`) {
+export async function createUser(username: string, peran: Peran = 'admin', nama = `Pengguna ${username}`) {
   passwordHash ??= await hashPassword(PASSWORD);
-  return prisma.pengguna.create({ data: { email, nama, peran, passwordHash } });
+  return prisma.pengguna.create({ data: { username, nama, peran, passwordHash } });
 }
 
 /** Master data minimum untuk transaksi & dokumen. */
@@ -45,11 +46,11 @@ export async function createMaster() {
 }
 
 /** Agent dengan cookie jar + token CSRF, sudah login. */
-export async function loginAs(email: string, password = PASSWORD, ingat = false) {
+export async function loginAs(username: string, password = PASSWORD, ingat = false) {
   const agent = request.agent(app);
   const csrf = await agent.get('/api/auth/csrf');
   const token = csrf.body.csrfToken as string;
-  const login = await agent.post('/api/auth/login').set('x-csrf-token', token).send({ email, password, ingat });
+  const login = await agent.post('/api/auth/login').set('x-csrf-token', token).send({ username, password, ingat });
   return { agent, token, login };
 }
 

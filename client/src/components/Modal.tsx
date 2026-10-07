@@ -1,14 +1,24 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { cx } from './ui';
 
+/** Urutan dialog yang sedang terbuka; Escape hanya menutup yang paling atas. */
+const tumpukan: symbol[] = [];
+
 function useTutupDenganEscape(onClose: () => void) {
+  const tutup = useRef(onClose);
+  tutup.current = onClose;
   useEffect(() => {
+    const id = Symbol('dialog');
+    tumpukan.push(id);
     const h = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && tumpukan[tumpukan.length - 1] === id) tutup.current();
     };
     window.addEventListener('keydown', h);
-    return () => window.removeEventListener('keydown', h);
-  }, [onClose]);
+    return () => {
+      window.removeEventListener('keydown', h);
+      tumpukan.splice(tumpukan.indexOf(id), 1);
+    };
+  }, []);
 }
 
 /** Pindahkan fokus ke dialog saat dibuka, kembalikan ke pemicu saat ditutup. */
@@ -54,7 +64,7 @@ export function Modal({ onClose, children, align = 'center', className, lapisan 
   return (
     <div
       className={cx(
-        'fixed inset-0 flex justify-center bg-[rgba(15,30,58,.45)] backdrop-blur-[3px] print:hidden',
+        'fixed inset-0 flex animate-masuk justify-center bg-[rgba(15,30,58,.45)] backdrop-blur-[3px] print:hidden',
         lapisan,
         align === 'top' ? 'items-start overflow-y-auto px-4 py-10' : 'items-center p-4',
       )}
@@ -72,7 +82,7 @@ export function Drawer({ title, onClose, children }: { title: string; onClose: (
   useTutupDenganEscape(onClose);
   return (
     <>
-      <div onClick={onClose} className="fixed inset-0 z-50 bg-[rgba(15,30,58,.35)] print:hidden" />
+      <div onClick={onClose} className="fixed inset-0 z-50 animate-masuk bg-[rgba(15,30,58,.35)] print:hidden" />
       <div
         ref={ref}
         role="dialog"

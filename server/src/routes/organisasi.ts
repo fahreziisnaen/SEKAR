@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { DITERIMA, fileUpload, hapusPublik, simpanPublik, wajibAdaBerkas } from '../lib/uploads.js';
 import { teks, teksOpsional } from '../lib/validasi.js';
-import { requireAuth, requireIzin } from '../middleware/auth.js';
+import { HttpError } from '../lib/http-error.js';
+import { currentUser, requireAuth, requireIzin } from '../middleware/auth.js';
 
 const ID = 1;
 
@@ -15,6 +16,7 @@ const organisasiSelect = {
   logoUrl: true,
   notifPengingatTenggat: true,
   notifPeringatanKeuangan: true,
+  wajibMfa: true,
 } as const;
 
 export async function ambilOrganisasi() {
@@ -69,6 +71,18 @@ const notifSchema = z.object({
 organisasiRouter.patch('/notifikasi', requireIzin('kelolaPengaturan'), async (req, res) => {
   const data = notifSchema.parse(req.body);
   const organisasi = await prisma.organisasi.update({ where: { id: ID }, data, select: organisasiSelect });
+  res.json({ organisasi });
+});
+
+const keamananSchema = z.object({ wajibMfa: z.boolean({ error: 'Nilai wajibMfa tidak valid.' }) });
+
+/** Mewajibkan MFA untuk semua pengguna. Admin harus sudah memakai MFA agar tidak terkunci sendiri. */
+organisasiRouter.patch('/keamanan', requireIzin('kelolaPengaturan'), async (req, res) => {
+  const { wajibMfa } = keamananSchema.parse(req.body);
+  if (wajibMfa && !currentUser(req).mfaAktifSejak) {
+    throw new HttpError(400, 'Aktifkan verifikasi dua langkah di akun Anda sendiri terlebih dahulu (Pengaturan › Akun Saya).', 'MFA_ADMIN_BELUM');
+  }
+  const organisasi = await prisma.organisasi.update({ where: { id: ID }, data: { wajibMfa }, select: organisasiSelect });
   res.json({ organisasi });
 });
 

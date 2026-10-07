@@ -5,9 +5,9 @@ import { app, createEvent, createMaster, createUser, loginAs, PDF, PNG, resetDat
 beforeEach(resetDatabase);
 
 async function siapkan() {
-  const admin = await createUser('admin@uji.id');
+  const admin = await createUser('admin');
   const m = await createMaster();
-  const sesi = await loginAs('admin@uji.id');
+  const sesi = await loginAs('admin');
   const ev = await createEvent(sesi, admin.id);
   return { admin, m, sesi, ev };
 }
@@ -63,8 +63,8 @@ describe('transaksi', () => {
       .set('x-csrf-token', sesi.token)
       .send({ tanggal: '2025-04-10', keterangan: 'X', kategoriId: m.masuk.id, nominal: 0, metodeId: m.metode.id, pihak: 'Pemberi Uji' });
     expect(nol.status).toBe(400);
-    await createUser('anggota@uji.id', 'anggota');
-    const anggota = await loginAs('anggota@uji.id');
+    await createUser('anggota', 'anggota');
+    const anggota = await loginAs('anggota');
     const res = await anggota.agent
       .post(`/api/event/${ev.id}/transaksi`)
       .set('x-csrf-token', anggota.token)

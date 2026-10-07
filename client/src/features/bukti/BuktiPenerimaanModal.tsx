@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Modal, TombolTutup } from '../../components/Modal';
-import { Memuat, PesanGalat } from '../../components/Status';
+import { Kerangka, KerangkaStatus } from '../../components/Kerangka';
+import { PesanGalat } from '../../components/Status';
 import { useToast } from '../../components/Toast';
 import { Button } from '../../components/ui';
 import { pathTandaTangan, useEventDetail, useOrganisasi, useOrganisasiPublik, usePengguna } from '../../hooks/queries';
@@ -146,7 +147,9 @@ export function BuktiPenerimaanModal({ tx, onClose }: { tx: Transaksi; onClose: 
             ) : halaman ? (
               <SvgBukti halaman={halaman} judul={judul} className="block h-auto w-full rounded-lg bg-white shadow-[0_18px_40px_-24px_rgba(18,38,74,.45)]" />
             ) : (
-              <Memuat label="Menyiapkan bukti…" />
+              <KerangkaStatus label="Menyiapkan bukti…">
+                <Kerangka className="aspect-[297/210] w-full rounded-lg" />
+              </KerangkaStatus>
             )}
           </div>
           <div className="flex flex-wrap justify-end gap-2.5 border-t border-line-soft px-[26px] py-[18px]">

@@ -23,6 +23,8 @@ export const IKON = {
   fileUp: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8zM14 3v5h5M12 18v-6M9 15l3-3 3 3',
   upload: 'M12 16V4M7 9l5-5 5 5M5 20h14',
   download: 'M12 4v11M7 10l5 5 5-5M5 20h14',
+  shield: 'M12 3l8 3v6c0 5-3.4 8.3-8 9-4.6-.7-8-4-8-9V6zM9 12l2 2 4-4',
+  copy: 'M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1',
 } as const;
 
 export type NamaIkon = keyof typeof IKON;

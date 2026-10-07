@@ -14,7 +14,7 @@ Repo ini memakai monorepo npm workspaces.
 | `client/` | React 19 + React Router + TanStack Query + Tailwind v4 (Vite). Client tidak menyimpan data sendiri; semua data diambil dari API. |
 | `server/` | Express 5 + Prisma 7 (MySQL 8). Berisi REST API di `/api`, autentikasi, dan penyimpanan unggahan. |
 | `docker/`, `Dockerfile`, `docker-compose*.yml` | Deployment dalam satu image. Express juga menyajikan hasil build React, jadi aplikasi berjalan di satu origin. |
-| `branding/` | Logo master (resolusi penuh). Tidak ikut ter-deploy. |
+| `branding/` | Berkas master resolusi penuh (logo, ilustrasi halaman masuk). Tidak ikut ter-deploy. |
 | `.env.example`, `server/.env.example` | Contoh konfigurasi. Berkas `.env` asli berisi rahasia dan tidak boleh di-commit (sudah ada di `.gitignore`). |
 
 ## Arsitektur singkat
@@ -23,9 +23,16 @@ Repo ini memakai monorepo npm workspaces.
   - Bootstrap pertama (`server/prisma/seed.ts`) hanya membuat tiga hal: profil organisasi, akun admin pertama (dari env), dan daftar awal kategori keuangan, metode pembayaran, serta jenis dokumen.
   - Daftar awal itu bisa diubah lewat **Pengaturan**.
 - **Autentikasi:**
+  - Masuk dengan **username** + kata sandi. Email pengguna hanya kontak opsional.
   - JWT disimpan di cookie httpOnly (access + refresh) dengan proteksi CSRF double-submit dan kata sandi argon2id.
   - Kotak "Ingat saya" menentukan apakah cookie refresh tetap ada setelah browser ditutup.
-  - Logout, ganti kata sandi, perubahan peran, atau menonaktifkan akun langsung mencabut semua sesi akun tersebut.
+  - Logout, ganti kata sandi, perubahan peran/username, atau menonaktifkan akun langsung mencabut semua sesi akun tersebut.
+- **Verifikasi dua langkah (MFA):** TOTP (RFC 6238) yang kompatibel dengan Google Authenticator, Microsoft Authenticator, dan Authy.
+  - Setiap pengguna bisa mengaktifkannya sendiri di **Pengaturan › Akun Saya**. Admin bisa mewajibkannya untuk semua pengguna di **Pengaturan › Keamanan**.
+  - Setelah kata sandi benar, server hanya memberi tiket 10 menit (`sk_mfa`). Sesi baru dibuat setelah kode benar.
+  - Rahasia TOTP disimpan terenkripsi AES-256-GCM dengan `MFA_ENCRYPTION_KEY`. Kode yang sama tidak bisa dipakai dua kali, dan kode salah dibatasi 10 kali per akun per 15 menit.
+  - Saat pemasangan, pengguna mendapat 10 kode pemulihan sekali pakai (disimpan sebagai HMAC). Admin bisa mereset MFA pengguna lain bila ponselnya hilang.
+  - Bila MFA diwajibkan, sesi lama yang belum ber-MFA hanya bisa dipakai untuk memasang MFA (API lain menjawab `403 MFA_WAJIB`).
 - **Hak akses:**
   - Matriks per peran ada di `server/src/services/izin.ts` dan menjadi satu-satunya sumber kebenaran.
   - Server mengirim daftar izin di `/api/auth/me`, dan client memakainya untuk menyembunyikan tombol.
@@ -41,6 +48,8 @@ Repo ini memakai monorepo npm workspaces.
   - Bukti transaksi, dokumen, dan tanda tangan disimpan di `server/uploads/privat`. Berkasnya hanya bisa diambil lewat API yang memeriksa sesi.
   - Logo organisasi disimpan di `server/uploads/publik`.
   - Jenis berkas divalidasi dari isinya (magic bytes), bukan dari nama berkas.
+- **Tampilan memuat:** setiap halaman dimuat terpisah saat pertama dibuka (code splitting). Selama data atau halaman dimuat, tampil kerangka (skeleton) sesuai bentuk kontennya. Saat periode laporan diganti, data lama tetap tampil sampai data baru siap.
+- **Unggah berkas:** bukti transaksi, dokumen, logo, dan tanda tangan dikirim lewat XHR sehingga persentase progres tampil. Berkas di atas `MAX_UPLOAD_MB` ditolak sebelum dikirim.
 - **Tanpa hardcode:**
   - Tanggal "hari ini" mengikuti `APP_TIMEZONE`.
   - Nama organisasi, logo, pengguna, kategori, metode bayar, jenis dokumen, dan template kebutuhan semuanya dikelola di Pengaturan.
@@ -75,7 +84,10 @@ cd sekar
 ```bash
 cp .env.example .env
 chmod 600 .env
-openssl rand -hex 32    # jalankan sekali untuk setiap rahasia; setiap nilai harus berbeda
+# Isi lima rahasia acak sekaligus (setiap nilai berbeda):
+for k in DB_PASSWORD DB_ROOT_PASSWORD JWT_ACCESS_SECRET JWT_REFRESH_SECRET MFA_ENCRYPTION_KEY; do
+  sed -i "s|^$k=.*|$k=$(openssl rand -hex 32)|" .env
+done
 ```
 
 | Variabel | Isi |
@@ -83,17 +95,19 @@ openssl rand -hex 32    # jalankan sekali untuk setiap rahasia; setiap nilai har
 | `APP_PORT` | Port host aplikasi (default `8030`). |
 | `DB_PASSWORD`, `DB_ROOT_PASSWORD` | Kata sandi MySQL. Gunakan hex dari `openssl rand -hex 32` agar aman dipakai di URL koneksi. |
 | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` | Dua rahasia acak yang **berbeda**, minimal 32 karakter. |
+| `MFA_ENCRYPTION_KEY` | Kunci enkripsi rahasia MFA di database: tepat 64 karakter hex (`openssl rand -hex 32`). |
 | `COOKIE_SECURE` | `true` bila diakses lewat HTTPS (wajib untuk produksi). `false` hanya untuk uji coba lewat `http://IP:port`. |
 | `TRUST_PROXY` | `1` bila aplikasi berada di belakang reverse proxy (Caddy/nginx). `false` bila diakses langsung. |
 | `MAX_UPLOAD_MB` | Batas ukuran unggahan (default 10). |
 | `APP_TIMEZONE` | Zona waktu acuan "hari ini", mis. `Asia/Jakarta`. |
-| `SEED_ORG_NAME`, `SEED_ADMIN_NAME`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Nama organisasi dan akun admin pertama. Kata sandi minimal 8 karakter. |
+| `SEED_ORG_NAME`, `SEED_ADMIN_NAME`, `SEED_ADMIN_USERNAME`, `SEED_ADMIN_PASSWORD` | Nama organisasi dan akun admin pertama. Username 3–32 karakter (huruf kecil, angka, `.`, `_`, `-`); kata sandi minimal 8 karakter. |
 
 Perhatikan perilaku beberapa variabel setelah instalasi pertama:
 
 - **`SEED_*`** hanya dipakai saat database masih kosong. Mengubahnya nanti **tidak** mengganti nama organisasi atau kata sandi admin yang sudah ada. Ubah data itu lewat aplikasi.
 - **`DB_PASSWORD` dan `DB_ROOT_PASSWORD`** hanya dipakai MySQL saat volume database pertama kali dibuat. Kalau diganti di `.env` setelah itu, aplikasi tidak bisa terhubung lagi. Untuk menggantinya, ubah dulu kata sandi di MySQL, baru ubah `.env`.
 - **`JWT_*`**: mengganti nilainya membuat semua pengguna harus masuk ulang.
+- **`MFA_ENCRYPTION_KEY`**: jangan diganti setelah ada pengguna yang memakai MFA. Rahasia lama tidak bisa dibaca lagi, sehingga semua MFA harus direset dan dipasang ulang. Simpan salinan `.env` di tempat aman bersama backup.
 
 ### 3. Jalankan
 
@@ -104,13 +118,13 @@ docker compose logs -f app                # lihat migrasi & bootstrap, Ctrl+C un
 curl http://127.0.0.1:8030/api/health     # {"status":"ok"}
 ```
 
-Buka aplikasi, lalu masuk dengan `SEED_ADMIN_EMAIL` dan `SEED_ADMIN_PASSWORD`. Setelah itu:
+Buka aplikasi, lalu masuk dengan `SEED_ADMIN_USERNAME` dan `SEED_ADMIN_PASSWORD`. Setelah itu:
 
-1. Ganti kata sandi di **Pengaturan › Akun Saya**.
+1. Ganti kata sandi dan aktifkan verifikasi dua langkah di **Pengaturan › Akun Saya**.
 2. Lengkapi **Profil Organisasi**: logo dan kota. Kota dipakai di Bukti Penerimaan Dana.
 3. Undang pengguna lain.
 
-Buat minimal dua akun admin. Aplikasi tidak punya fitur reset kata sandi lewat email, jadi admin yang lupa kata sandi hanya bisa di-reset oleh admin lain.
+Buat minimal dua akun admin. Aplikasi tidak punya fitur reset lewat email, jadi admin yang lupa kata sandi atau kehilangan ponsel MFA (dan kode pemulihannya) hanya bisa di-reset oleh admin lain.
 
 ### 4. HTTPS lewat reverse proxy (disarankan)
 
@@ -187,7 +201,10 @@ docker compose restart app
 | `Isi ... di file .env` saat `docker compose up` | Variabel wajib masih kosong. Lengkapi `.env`. |
 | Setelah masuk, langsung kembali ke halaman login | `COOKIE_SECURE=true` tetapi aplikasi dibuka lewat `http://`. Pakai HTTPS, atau set `false` khusus untuk uji coba. |
 | Semua pengguna kena "terlalu banyak percobaan" | Aplikasi di belakang proxy tetapi `TRUST_PROXY` belum `1`, sehingga semua pengguna terbaca dari satu IP. |
-| App tidak pernah `healthy` | Cek `docker compose logs app`. Biasanya koneksi database gagal (lihat catatan `DB_PASSWORD` di atas) atau migrasi gagal. |
+| App tidak pernah `healthy` | Cek `docker compose logs app`. Biasanya koneksi database gagal (lihat catatan `DB_PASSWORD` di atas), migrasi gagal, atau ada variabel `.env` yang tidak valid (pesannya tampil di log). |
+| Kode Google Authenticator selalu ditolak | Jam server atau ponsel tidak tepat. TOTP hanya menoleransi selisih ±30 detik; aktifkan sinkronisasi waktu otomatis (NTP) di server dan ponsel. |
+| Satu-satunya admin kehilangan ponsel dan kode pemulihan | Masuk ke MySQL dengan `docker compose exec db mysql -uroot -p sekar` (kata sandi: `DB_ROOT_PASSWORD`), lalu jalankan `UPDATE Pengguna SET mfaRahasia = NULL, mfaRahasiaBaru = NULL, mfaAktifSejak = NULL, mfaLangkahTerakhir = NULL, tokenVersion = tokenVersion + 1 WHERE username = 'admin';` (ganti `admin` dengan username-nya). Bila MFA diwajibkan, admin memasang ulang saat masuk berikutnya. |
+| Memperbarui dari versi lama yang masih login dengan email | `.env` lama memakai `SEED_ADMIN_EMAIL`. Ganti menjadi `SEED_ADMIN_USERNAME` dan tambahkan `MFA_ENCRYPTION_KEY`. Migrasi otomatis mengisi username dari bagian depan email (mis. `fajar@contoh.id` → `fajar`). |
 
 ## Pengembangan lokal
 
@@ -200,7 +217,7 @@ npm run setup                          # prisma generate + migrasi + bootstrap
 npm run dev                            # API :4000 + Vite :5173 (proxy /api & /uploads)
 ```
 
-Buka http://localhost:5173, lalu masuk dengan `SEED_ADMIN_EMAIL` dan `SEED_ADMIN_PASSWORD`.
+Buka http://localhost:5173, lalu masuk dengan `SEED_ADMIN_USERNAME` dan `SEED_ADMIN_PASSWORD`.
 
 | Perintah | Fungsi |
 | --- | --- |
@@ -213,14 +230,15 @@ Buka http://localhost:5173, lalu masuk dengan `SEED_ADMIN_EMAIL` dan `SEED_ADMIN
 
 ## API
 
-Semua endpoint ada di `/api` dan memerlukan sesi, kecuali `health`, `info`, `organisasi/publik`, serta `auth/csrf|login|refresh|me`.
+Semua endpoint ada di `/api` dan memerlukan sesi, kecuali `health`, `info`, `organisasi/publik`, serta `auth/csrf|login|login/mfa*|refresh|me`.
 
 | Sumber daya | Endpoint |
 | --- | --- |
 | Sesi | `POST auth/login`, `auth/refresh`, `auth/logout`, `PUT auth/kata-sandi`, `GET auth/me`, `PUT/DELETE auth/tanda-tangan` |
-| Organisasi | `GET/PUT organisasi`, `PATCH organisasi/notifikasi`, `POST/DELETE organisasi/logo` |
+| MFA | Login: `POST auth/login/mfa`, `auth/login/mfa/pasang`, `auth/login/mfa/aktifkan`. Akun sendiri: `GET auth/mfa`, `POST auth/mfa/pasang|aktifkan|nonaktifkan|kode-pemulihan` |
+| Organisasi | `GET/PUT organisasi`, `PATCH organisasi/notifikasi`, `PATCH organisasi/keamanan`, `POST/DELETE organisasi/logo` |
 | Master data | `GET master`; `POST/DELETE master/kategori|metode|jenis-dokumen`; `POST/PUT/DELETE master/template` |
-| Pengguna | `GET/POST pengguna`, `PUT pengguna/:id`, `GET pengguna/:id/tanda-tangan` |
+| Pengguna | `GET/POST pengguna`, `PUT pengguna/:id`, `DELETE pengguna/:id/mfa`, `GET pengguna/:id/tanda-tangan` |
 | Event | `GET/POST event`, `GET/PUT/DELETE event/:id`, `PUT event/:id/anggaran` |
 | Per event | `GET/POST event/:id/{transaksi,tugas,dokumen,peserta,vendor}`, `POST event/:id/peserta/impor` |
 | Item | `GET transaksi/:id/bukti`, `DELETE transaksi/:id`; `PATCH/DELETE tugas/:id`; `GET dokumen/:id/unduh`, `PATCH/DELETE dokumen/:id`; `PATCH/DELETE peserta/:id`; `PUT/DELETE vendor/:id` |
@@ -258,6 +276,7 @@ Setiap transaksi **pemasukan** mendapat nomor bukti otomatis `BPD-YYYYMMDD-XXX`.
 - **Logo & favicon:**
   - Logo aplikasi dipakai di sidebar, halaman masuk, kepala laporan, dan Bukti Penerimaan Dana. Berkasnya `client/public/logo/sekar-logo.png`, yaitu versi web 512 px dari `branding/SEKAR_logo.png`. Bila logo master diganti, buat ulang versi web ini.
   - Di latar navy, logo diletakkan di atas kotak putih karena warna birunya hampir sama dengan latar.
+  - Ilustrasi halaman masuk memakai `client/public/ilustrasi/login-800.webp` dan `login-1400.webp`, versi web dari `branding/SEKAR_Front.png` (dipilih browser sesuai lebar layar). Bila master diganti, buat ulang kedua berkas ini.
   - Favicon, ikon Apple, dan manifest PWA ada di `client/public/favicon/`.
   - Judul tab browser mengikuti nama organisasi.
 - **Export Excel** mengunduh CSV (pemisah `;`, UTF-8 BOM). **Export PDF** memakai dialog cetak browser dengan gaya cetak khusus laporan.

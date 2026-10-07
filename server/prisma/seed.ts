@@ -11,6 +11,7 @@
 import 'dotenv/config';
 import { hashPassword, MIN_PASSWORD_LENGTH } from '../src/lib/password.js';
 import { prisma } from '../src/lib/prisma.js';
+import { POLA_USERNAME } from '../src/lib/validasi.js';
 
 function requireEnv(name: string): string {
   const value = process.env[name]?.trim();
@@ -46,11 +47,14 @@ async function main() {
   if (!(await prisma.pengguna.count({ where: { peran: 'admin' } }))) {
     const password = requireEnv('SEED_ADMIN_PASSWORD');
     if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`SEED_ADMIN_PASSWORD minimal ${MIN_PASSWORD_LENGTH} karakter.`);
-    const email = requireEnv('SEED_ADMIN_EMAIL').toLowerCase();
+    const username = requireEnv('SEED_ADMIN_USERNAME').toLowerCase();
+    if (username.length < 3 || username.length > 32 || !POLA_USERNAME.test(username)) {
+      throw new Error('SEED_ADMIN_USERNAME harus 3–32 karakter: huruf kecil, angka, titik, garis bawah, atau tanda hubung.');
+    }
     await prisma.pengguna.create({
-      data: { nama: requireEnv('SEED_ADMIN_NAME'), email, peran: 'admin', passwordHash: await hashPassword(password) },
+      data: { nama: requireEnv('SEED_ADMIN_NAME'), username, peran: 'admin', passwordHash: await hashPassword(password) },
     });
-    console.log(`[seed] Akun admin ${email} dibuat. Segera ganti kata sandinya setelah masuk.`);
+    console.log(`[seed] Akun admin "${username}" dibuat. Segera ganti kata sandinya setelah masuk.`);
   }
 
   if (!(await prisma.kategoriKeuangan.count())) {

@@ -48,13 +48,14 @@ services:
       DATABASE_URL: mysql://sekar:${DB_PASSWORD}@db:3306/sekar
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Isi JWT_ACCESS_SECRET di file .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Isi JWT_REFRESH_SECRET di file .env}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:?Isi MFA_ENCRYPTION_KEY di file .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
       APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Jakarta}
       SEED_ORG_NAME: ${SEED_ORG_NAME:?Isi SEED_ORG_NAME di file .env}
       SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:?Isi SEED_ADMIN_NAME di file .env}
-      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?Isi SEED_ADMIN_EMAIL di file .env}
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:?Isi SEED_ADMIN_USERNAME di file .env}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Isi SEED_ADMIN_PASSWORD di file .env}
     volumes:
       - sekar-uploads:/app/server/uploads

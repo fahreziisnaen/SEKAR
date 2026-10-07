@@ -1,15 +1,16 @@
 import type { ReactNode } from 'react';
 import { errorMessage } from '../lib/api';
+import { KerangkaKonten, KerangkaStatus, type VarianKerangka } from './Kerangka';
 import { warnaBadge } from '../lib/warna';
 import { Modal, TombolTutup } from './Modal';
 import { Badge, Button, cx } from './ui';
 
-export function Memuat({ label = 'Memuat…', className }: { label?: string; className?: string }) {
+/** Tempat data yang sedang dimuat, berupa kerangka (skeleton) sesuai bentuk kontennya. */
+export function Memuat({ label = 'Memuat…', className, varian = 'blok', baris }: { label?: string; className?: string; varian?: VarianKerangka; baris?: number }) {
   return (
-    <div role="status" className={cx('flex items-center justify-center gap-3 py-16 text-sm text-ink-muted', className)}>
-      <span className="size-5 animate-spin rounded-full border-2 border-line-ctl border-t-primary" aria-hidden="true" />
-      {label}
-    </div>
+    <KerangkaStatus label={label} className={cx(varian === 'tabel' ? 'py-1' : varian === 'blok' ? 'p-5' : '', className)}>
+      <KerangkaKonten varian={varian} baris={baris} />
+    </KerangkaStatus>
   );
 }
 

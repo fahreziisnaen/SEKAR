@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { Modal, TombolTutup } from '../../components/Modal';
+import { InputTanggal } from '../../components/InputTanggal';
 import { Konfirmasi, PesanGalat } from '../../components/Status';
 import { useToast } from '../../components/Toast';
 import { Button, Field, Input, MoneyInput, Select, TextArea, cx } from '../../components/ui';
@@ -102,7 +103,7 @@ export function EventFormModal({ event: e, onClose }: { event: EventDetail; onCl
             </Field>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-4">
               <Field label="Tanggal *">
-                <Input type="date" value={f.tanggal} onChange={(x) => setF({ ...f, tanggal: x.target.value })} className="py-[11px]" />
+                <InputTanggal value={f.tanggal} onChange={(tanggal) => setF({ ...f, tanggal })} />
               </Field>
               <Field label="Jam">
                 <Input value={f.waktu} maxLength={60} onChange={(x) => setF({ ...f, waktu: x.target.value })} placeholder="08.00 – 17.00 WIB" />

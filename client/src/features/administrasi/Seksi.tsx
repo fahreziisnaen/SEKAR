@@ -1,5 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Icon } from '../../components/icons';
+import { InputTanggal } from '../../components/InputTanggal';
+import { Tip } from '../../components/Tip';
 import { Modal, TombolTutup } from '../../components/Modal';
 import { useOverlays } from '../../components/Overlays';
 import { BadgePilihan, GagalMemuat, Konfirmasi, Memuat, PesanGalat } from '../../components/Status';
@@ -27,6 +29,7 @@ import {
 } from '../../hooks/queries';
 import { downloadFile, errorMessage, fieldErrors } from '../../lib/api';
 import { pesertaDariCsv } from '../../lib/csv';
+import { unduhCsv } from '../../lib/ekspor';
 import { formatTanggal, persen, rupiah } from '../../lib/format';
 import { LABEL_KEHADIRAN, LABEL_PERAN, LABEL_REGISTRASI, LABEL_STATUS_DOKUMEN, LABEL_TIPE_PESERTA, statusBayar } from '../../lib/label';
 import { warnaAvatar, warnaEkstensi } from '../../lib/warna';
@@ -34,15 +37,16 @@ import type { EventDetail, Peserta, Vendor } from '../../types';
 
 function TombolHapus({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      title="Hapus"
-      aria-label={label}
-      onClick={onClick}
-      className="flex size-[30px] flex-none cursor-pointer items-center justify-center rounded-[9px] border border-line-ctl bg-white text-base text-ink-muted hover:border-danger hover:text-danger"
-    >
-      ×
-    </button>
+    <Tip label="Hapus">
+      <button
+        type="button"
+        aria-label={label}
+        onClick={onClick}
+        className="flex size-[30px] flex-none cursor-pointer items-center justify-center rounded-[9px] border border-line-ctl bg-white text-base text-ink-muted hover:border-danger hover:text-danger"
+      >
+        ×
+      </button>
+    </Tip>
   );
 }
 
@@ -73,7 +77,7 @@ export function DokumenEvent({ eventId }: { eventId: number }) {
         )}
       </div>
       {q.isPending ? (
-        <Memuat className="border-t border-line-soft" />
+        <Memuat varian="tabel" />
       ) : q.isError ? (
         <GagalMemuat error={q.error} onRetry={() => void q.refetch()} className="rounded-none border-x-0 border-b-0" />
       ) : dokumen.length === 0 ? (
@@ -107,15 +111,16 @@ export function DokumenEvent({ eventId }: { eventId: number }) {
                   {d.diunggahOleh.nama}
                 </span>
                 <span className="flex justify-end gap-1.5">
-                  <button
-                    type="button"
-                    title="Unduh"
-                    aria-label={`Unduh ${d.nama}`}
-                    onClick={() => downloadFile(`/dokumen/${d.id}/unduh`).catch((e) => toast(errorMessage(e)))}
-                    className="flex size-[34px] cursor-pointer items-center justify-center rounded-[10px] border border-line-ctl bg-white text-ink-label hover:border-primary hover:text-primary"
-                  >
-                    <Icon name="download" size={16} />
-                  </button>
+                  <Tip label="Unduh">
+                    <button
+                      type="button"
+                      aria-label={`Unduh ${d.nama}`}
+                      onClick={() => downloadFile(`/dokumen/${d.id}/unduh`).catch((e) => toast(errorMessage(e)))}
+                      className="flex size-[34px] cursor-pointer items-center justify-center rounded-[10px] border border-line-ctl bg-white text-ink-label hover:border-primary hover:text-primary"
+                    >
+                      <Icon name="download" size={16} />
+                    </button>
+                  </Tip>
                   {tulis && <TombolHapus label={`Hapus ${d.nama}`} onClick={() => setHapusId(d.id)} />}
                 </span>
               </div>
@@ -229,35 +234,160 @@ function PesertaModal({ eventId, onClose }: { eventId: number; onClose: () => vo
   );
 }
 
+const KOLOM_CSV: [string, string, string][] = [
+  ['nama', 'Wajib', 'Nama lengkap peserta'],
+  ['email', 'Opsional', 'Alamat email'],
+  ['telepon', 'Opsional', 'Nomor telepon / WhatsApp'],
+  ['tipe', 'Opsional', 'anggota, mitra, atau umum (bawaan: umum)'],
+  ['registrasi', 'Opsional', 'menunggu atau terverifikasi'],
+  ['kehadiran', 'Opsional', 'belum, hadir, atau tidak hadir'],
+];
+
+/** Panduan + pratinjau impor peserta dari CSV (pengganti petunjuk tooltip bawaan browser). */
+function ImporPesertaModal({ eventId, onClose }: { eventId: number; onClose: () => void }) {
+  const impor = useImporPeserta(eventId);
+  const toast = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [seret, setSeret] = useState(false);
+  const [hasil, setHasil] = useState<{ nama: string; peserta: Partial<InputPeserta>[]; dilewati: number[] } | null>(null);
+  const [err, setErr] = useState('');
+
+  const baca = async (file: File | undefined) => {
+    if (fileRef.current) fileRef.current.value = '';
+    if (!file) return;
+    setErr('');
+    setHasil(null);
+    try {
+      const { peserta, dilewati } = pesertaDariCsv(await file.text());
+      if (!peserta.length) return setErr('Tidak ada baris peserta di berkas ini. Pastikan baris pertama berisi judul kolom dan ada kolom "nama".');
+      setHasil({ nama: file.name, peserta, dilewati });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Berkas CSV tidak dapat dibaca.');
+    }
+  };
+
+  const unduhContoh = () =>
+    unduhCsv('contoh-impor-peserta.csv', [
+      ['nama', 'email', 'telepon', 'tipe', 'registrasi', 'kehadiran'],
+      ['Budi Santoso', 'budi@contoh.id', '081234567890', 'umum', 'menunggu', 'belum'],
+      ['Sari Dewi', 'sari@contoh.id', '081298765432', 'mitra', 'terverifikasi', 'hadir'],
+    ]);
+
+  const kirim = () => {
+    if (!hasil) return;
+    impor.mutate(hasil.peserta, {
+      onSuccess: ({ jumlah }) => {
+        toast(`${jumlah} peserta diimpor${hasil.dilewati.length ? `, ${hasil.dilewati.length} baris tanpa nama dilewati` : ''}`);
+        onClose();
+      },
+      onError: (e) => setErr(errorMessage(e)),
+    });
+  };
+
+  return (
+    <Modal onClose={onClose} align="top" className="max-w-[600px] rounded-3xl p-[26px]">
+      {(titleId) => (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div id={titleId} className="font-display text-[22px] font-bold text-navy">
+                Impor peserta dari CSV
+              </div>
+              <div className="mt-0.5 text-[13px] text-ink-muted">Tambahkan banyak peserta sekaligus dari Excel atau Google Sheets.</div>
+            </div>
+            <TombolTutup onClick={onClose} />
+          </div>
+          <ol className="m-0 flex list-decimal flex-col gap-1 pl-5 text-[13px] leading-normal text-ink-body">
+            <li>Siapkan tabel dengan judul kolom di baris pertama (lihat daftar di bawah).</li>
+            <li>
+              Simpan lewat <b>File › Save As › CSV</b> (Excel) atau <b>File › Download › CSV</b> (Google Sheets).
+            </li>
+            <li>Pilih berkasnya di sini, periksa jumlah peserta, lalu klik Impor.</li>
+          </ol>
+          <div className="overflow-hidden rounded-2xl border border-line">
+            <table className="w-full border-collapse text-left text-[13px]">
+              <thead className="bg-surface-muted text-xs text-ink-muted">
+                <tr>
+                  <th className="px-3.5 py-2 font-semibold">Kolom</th>
+                  <th className="px-3.5 py-2 font-semibold">Isi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {KOLOM_CSV.map(([k, sifat, isi]) => (
+                  <tr key={k} className="border-t border-line-soft">
+                    <td className="px-3.5 py-2 align-top">
+                      <code className="font-mono font-semibold text-navy">{k}</code>
+                      {sifat === 'Wajib' && <span className="ml-1.5 rounded-full bg-danger-bg px-1.5 py-px text-[10px] font-bold text-danger-ink">wajib</span>}
+                    </td>
+                    <td className="px-3.5 py-2 text-ink-body">{isi}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button type="button" onClick={unduhContoh} className="inline-flex cursor-pointer items-center gap-1.5 self-start border-none bg-transparent p-0 text-[13px] font-semibold text-primary">
+            <Icon name="download" size={15} />
+            Unduh contoh CSV
+          </button>
+          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => void baca(e.target.files?.[0])} />
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setSeret(true);
+            }}
+            onDragLeave={() => setSeret(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setSeret(false);
+              void baca(e.dataTransfer.files[0]);
+            }}
+            className={cx(
+              'flex flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed px-5 py-6 text-center text-[13px] transition-colors',
+              seret ? 'border-primary bg-primary-bg' : hasil ? 'border-success-dash bg-success-bg' : 'border-line-dash bg-surface-muted',
+            )}
+          >
+            {hasil ? (
+              <>
+                <span className="animate-pop font-semibold text-success-ink">✓ {hasil.nama}</span>
+                <span className="text-ink-body">
+                  <b className="text-navy">{hasil.peserta.length} peserta</b> siap diimpor
+                  {hasil.dilewati.length ? `, ${hasil.dilewati.length} baris tanpa nama akan dilewati` : ''}.
+                </span>
+              </>
+            ) : (
+              <span className="text-ink-muted">Tarik berkas CSV ke sini atau</span>
+            )}
+            <button type="button" onClick={() => fileRef.current?.click()} className="cursor-pointer border-none bg-transparent p-0 font-semibold text-primary">
+              {hasil ? 'Ganti berkas' : 'pilih berkas'}
+            </button>
+          </div>
+          <PesanGalat>{err}</PesanGalat>
+          <div className="flex justify-end gap-2.5">
+            <Button variant="secondary" onClick={onClose} disabled={impor.isPending} className="px-[18px] py-[11px] text-sm disabled:opacity-50">
+              Batal
+            </Button>
+            <Button onClick={kirim} disabled={!hasil || impor.isPending} className="px-5 py-[11px] text-sm disabled:opacity-50">
+              {impor.isPending ? 'Mengimpor…' : hasil ? `Impor ${hasil.peserta.length} Peserta` : 'Impor'}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export function PesertaEvent({ eventId }: { eventId: number }) {
   const q = usePeserta(eventId);
   const ubah = useUbahPeserta(eventId);
   const hapus = useHapusPeserta(eventId);
-  const impor = useImporPeserta(eventId);
   const boleh = useIzin();
   const toast = useToast();
-  const fileRef = useRef<HTMLInputElement>(null);
   const [tambah, setTambah] = useState(false);
+  const [imporCsv, setImporCsv] = useState(false);
   const [hapusId, setHapusId] = useState<number | null>(null);
   const rows = q.data ?? [];
   const tulis = boleh('tulisEvent');
   const target = rows.find((p) => p.id === hapusId);
-
-  const imporFile = async (file: File | undefined) => {
-    if (!file) return;
-    try {
-      const { peserta, dilewati } = pesertaDariCsv(await file.text());
-      if (!peserta.length) return toast('Tidak ada baris peserta di berkas CSV.');
-      impor.mutate(peserta, {
-        onSuccess: ({ jumlah }) => toast(`${jumlah} peserta diimpor${dilewati.length ? `, ${dilewati.length} baris tanpa nama dilewati` : ''}`),
-        onError: (e) => toast(errorMessage(e)),
-      });
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Berkas CSV tidak dapat dibaca.');
-    } finally {
-      if (fileRef.current) fileRef.current.value = '';
-    }
-  };
 
   return (
     <div className="flex animate-fade-up flex-col gap-5">
@@ -281,9 +411,8 @@ export function PesertaEvent({ eventId }: { eventId: number }) {
           </div>
           {tulis && (
             <div className="flex flex-wrap gap-2">
-              <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => void imporFile(e.target.files?.[0])} />
-              <Button variant="secondary" onClick={() => fileRef.current?.click()} disabled={impor.isPending} title="Kolom: nama, email, telepon, tipe, registrasi, kehadiran" className="px-4 py-2.5 text-[13px]">
-                {impor.isPending ? 'Mengimpor…' : 'Impor CSV'}
+              <Button variant="secondary" onClick={() => setImporCsv(true)} className="px-4 py-2.5 text-[13px]">
+                Impor CSV
               </Button>
               <Button onClick={() => setTambah(true)} className="px-4 py-2.5 text-[13px]">
                 + Tambah Peserta
@@ -292,7 +421,7 @@ export function PesertaEvent({ eventId }: { eventId: number }) {
           )}
         </div>
         {q.isPending ? (
-          <Memuat className="border-t border-line-soft" />
+          <Memuat varian="tabel" />
         ) : q.isError ? (
           <GagalMemuat error={q.error} onRetry={() => void q.refetch()} className="rounded-none border-x-0 border-b-0" />
         ) : rows.length > 0 ? (
@@ -339,6 +468,7 @@ export function PesertaEvent({ eventId }: { eventId: number }) {
         )}
       </Card>
       {tambah && <PesertaModal eventId={eventId} onClose={() => setTambah(false)} />}
+      {imporCsv && <ImporPesertaModal eventId={eventId} onClose={() => setImporCsv(false)} />}
       {target && (
         <Konfirmasi
           judul="Hapus peserta?"
@@ -474,7 +604,7 @@ export function VendorEvent({ eventId }: { eventId: number }) {
         </div>
       </div>
       {q.isPending ? (
-        <Memuat className="border-t border-line-soft" />
+        <Memuat varian="tabel" />
       ) : q.isError ? (
         <GagalMemuat error={q.error} onRetry={() => void q.refetch()} className="rounded-none border-x-0 border-b-0" />
       ) : vendor.length > 0 ? (
@@ -493,15 +623,16 @@ export function VendorEvent({ eventId }: { eventId: number }) {
               <span className="flex justify-end gap-1.5">
                 {tulis && (
                   <>
-                    <button
-                      type="button"
-                      aria-label={`Ubah ${v.nama}`}
-                      title="Ubah"
-                      onClick={() => setForm(v)}
-                      className="flex size-[30px] cursor-pointer items-center justify-center rounded-[9px] border border-line-ctl bg-white text-xs font-semibold text-ink-label hover:border-primary hover:text-primary"
-                    >
-                      ✎
-                    </button>
+                    <Tip label="Ubah">
+                      <button
+                        type="button"
+                        aria-label={`Ubah ${v.nama}`}
+                        onClick={() => setForm(v)}
+                        className="flex size-[30px] cursor-pointer items-center justify-center rounded-[9px] border border-line-ctl bg-white text-xs font-semibold text-ink-label hover:border-primary hover:text-primary"
+                      >
+                        ✎
+                      </button>
+                    </Tip>
                     <TombolHapus label={`Hapus ${v.nama}`} onClick={() => setHapusId(v.id)} />
                   </>
                 )}
@@ -547,7 +678,7 @@ function FormKebutuhan({ eventId }: { eventId: number }) {
     );
   };
   return (
-    <form onSubmit={kirim} className="flex flex-col gap-2">
+    <form onSubmit={kirim} noValidate className="flex flex-col gap-2">
       <div className="grid grid-cols-[minmax(200px,2fr)_minmax(150px,1fr)_minmax(140px,170px)_auto] gap-2.5 max-md:grid-cols-1">
         <Input value={f.label} maxLength={160} onChange={(e) => setF({ ...f, label: e.target.value })} placeholder="Kebutuhan baru, mis. Konfirmasi venue" aria-label="Kebutuhan baru" className="py-2.5" />
         <Select value={f.picId} onChange={(e) => setF({ ...f, picId: e.target.value })} aria-label="PIC kebutuhan" className="py-2.5">
@@ -560,7 +691,7 @@ function FormKebutuhan({ eventId }: { eventId: number }) {
               </option>
             ))}
         </Select>
-        <Input type="date" value={f.tenggat} onChange={(e) => setF({ ...f, tenggat: e.target.value })} aria-label="Tenggat" className="py-2" />
+        <InputTanggal value={f.tenggat} onChange={(tenggat) => setF({ ...f, tenggat })} aria-label="Tenggat" placeholder="Tenggat" bolehKosong />
         <Button type="submit" disabled={tambah.isPending || !f.label.trim()} className="px-4 py-2.5 text-[13px] disabled:opacity-50">
           + Tambah
         </Button>

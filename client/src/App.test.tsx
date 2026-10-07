@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { ToastProvider } from './components/Toast';
-import { buatEvent, buatTransaksi, pasangApiPalsu, ruteDasar, USER_ADMIN, USER_PENINJAU } from './test/fakeApi';
+import { buatEvent, buatTransaksi, kendaliUnggah, pasangApiPalsu, ruteDasar, USER_ADMIN, USER_PENINJAU } from './test/fakeApi';
 import type { SessionUser } from './types';
 
 function renderApp(url: string) {
@@ -33,7 +33,7 @@ describe('sesi', () => {
       'GET /auth/me': () => ({ json: { user } }),
       'POST /auth/login': ({ body }) => {
         user = USER_ADMIN;
-        expect(body).toEqual({ email: 'admin@uji.id', password: 'rahasia-123', ingat: true });
+        expect(body).toEqual({ username: 'admin', password: 'rahasia-123', ingat: true });
         return { json: { user } };
       },
       'GET /event/:id/transaksi': () => ({ json: { transaksi: [] } }),
@@ -42,10 +42,10 @@ describe('sesi', () => {
     renderApp('/keuangan');
 
     expect(await screen.findByRole('heading', { name: 'Masuk ke SEKAR' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Email')).toHaveValue('');
+    expect(screen.getByLabelText('Username')).toHaveValue('');
     expect(await screen.findByText('Gunakan akun tim Komunitas Uji kamu.')).toBeInTheDocument();
 
-    await u.type(screen.getByLabelText('Email'), 'admin@uji.id');
+    await u.type(screen.getByLabelText('Username'), 'admin');
     await u.type(screen.getByLabelText('Kata sandi'), 'rahasia-123');
     await u.click(screen.getByLabelText('Ingat saya'));
     await u.click(screen.getByRole('button', { name: 'Masuk' }));
@@ -73,7 +73,7 @@ describe('sesi', () => {
     const u = userEvent.setup();
     renderApp('/laporan?jenis=rekap');
     await u.click((await screen.findAllByRole('button', { name: 'Keluar' }))[0]);
-    await u.type(await screen.findByLabelText('Email'), 'lihat@uji.id');
+    await u.type(await screen.findByLabelText('Username'), 'peninjau');
     await u.type(screen.getByLabelText('Kata sandi'), 'sandi-uji-123');
     await u.click(screen.getByRole('button', { name: 'Masuk' }));
     expect(await screen.findByRole('heading', { name: 'Selamat Datang di SEKAR' })).toBeInTheDocument();
@@ -82,14 +82,84 @@ describe('sesi', () => {
   it('menampilkan pesan dari server saat login gagal', async () => {
     pasangApiPalsu({
       ...ruteDasar(null, []),
-      'POST /auth/login': () => ({ status: 401, json: { message: 'Email atau kata sandi salah.' } }),
+      'POST /auth/login': () => ({ status: 401, json: { message: 'Username atau kata sandi salah.' } }),
     });
     const u = userEvent.setup();
     renderApp('/login');
-    await u.type(await screen.findByLabelText('Email'), 'x@uji.id');
+    await u.type(await screen.findByLabelText('Username'), 'tidak-ada');
     await u.type(screen.getByLabelText('Kata sandi'), 'salah');
     await u.click(screen.getByRole('button', { name: 'Masuk' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Email atau kata sandi salah.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Username atau kata sandi salah.');
+  });
+
+  it('akun ber-MFA diminta kode Google Authenticator setelah kata sandi', async () => {
+    let user: SessionUser | null = null;
+    const panggilan = pasangApiPalsu({
+      ...ruteDasar(null, [buatEvent()]),
+      'GET /auth/me': () => ({ json: { user } }),
+      'POST /auth/login': () => ({ json: { langkah: 'mfa' } }),
+      'POST /auth/login/mfa': ({ body }) => {
+        if ((body as { kode: string }).kode !== '246810') return { status: 400, json: { message: 'Kode verifikasi salah atau sudah kedaluwarsa.' } };
+        user = { ...USER_ADMIN, mfa: { aktif: true, wajib: false } };
+        return { json: { user } };
+      },
+    });
+    const u = userEvent.setup();
+    renderApp('/login');
+    await u.type(await screen.findByLabelText('Username'), 'admin');
+    await u.type(screen.getByLabelText('Kata sandi'), 'rahasia-123');
+    await u.click(screen.getByRole('button', { name: 'Masuk' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Verifikasi dua langkah' });
+    const kotakPertama = within(dialog).getByLabelText('Kode verifikasi, digit 1 dari 6');
+    // Hanya angka; digit keenam langsung mengirim kode tanpa perlu menekan tombol.
+    await u.type(kotakPertama, '13a579');
+    expect(within(dialog).getAllByRole('textbox').map((el) => (el as HTMLInputElement).value)).toEqual(['1', '3', '5', '7', '9', '']);
+    await u.keyboard('2');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Kode verifikasi salah');
+    expect(within(dialog).getByRole('heading', { name: 'Kode tidak cocok' })).toBeInTheDocument();
+    expect(panggilan.find((p) => p.path === '/auth/login/mfa')!.body).toEqual({ kode: '135792' });
+    // Setelah animasi gagal, kotak dikosongkan untuk percobaan berikutnya.
+    await waitFor(() => expect(within(dialog).getByLabelText('Kode verifikasi, digit 1 dari 6')).toHaveValue(''), { timeout: 2500 });
+
+    await u.click(within(dialog).getByRole('button', { name: /Pakai kode pemulihan/ }));
+    expect(within(dialog).getByLabelText('Kode pemulihan')).toBeInTheDocument();
+    await u.click(within(dialog).getByRole('button', { name: 'Pakai kode dari aplikasi' }));
+
+    await u.type(within(dialog).getByLabelText('Kode verifikasi, digit 1 dari 6'), '246810');
+    expect(await within(dialog).findByRole('heading', { name: 'Verifikasi berhasil' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Selamat Datang di SEKAR' }, { timeout: 4000 })).toBeInTheDocument();
+    expect(panggilan.filter((p) => p.path === '/auth/login/mfa')).toHaveLength(2);
+  });
+
+  it('MFA wajib: pengguna lama harus memasang Google Authenticator sebelum memakai aplikasi', async () => {
+    let user: SessionUser = { ...USER_ADMIN, mfa: { aktif: false, wajib: true } };
+    pasangApiPalsu({
+      ...ruteDasar(null, [buatEvent()]),
+      'GET /auth/me': () => ({ json: { user } }),
+      'POST /auth/mfa/pasang': () => ({ json: { rahasia: 'ABCD EFGH IJKL MNOP', uri: 'otpauth://totp/SEKAR:admin', qr: 'data:image/svg+xml;base64,PHN2Zy8+' } }),
+      'POST /auth/mfa/aktifkan': () => {
+        user = { ...USER_ADMIN, mfa: { aktif: true, wajib: true } };
+        return { json: { kodePemulihan: ['abcde-fghjk', 'mnpqr-stuvw'] } };
+      },
+      'GET /auth/mfa': () => ({ json: { aktif: true, aktifSejak: null, wajib: true, sisaKodePemulihan: 10 } }),
+    });
+    const u = userEvent.setup();
+    renderApp('/');
+    expect(await screen.findByRole('heading', { name: 'Pasang verifikasi dua langkah' })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Kode QR untuk Google Authenticator' })).toBeInTheDocument();
+    expect(screen.getByText('ABCD EFGH IJKL MNOP')).toBeInTheDocument();
+
+    await u.type(screen.getByLabelText('Kode dari aplikasi, digit 1 dari 6'), '123456');
+    expect(await screen.findByText('Verifikasi dua langkah aktif!')).toBeInTheDocument();
+    const kode = await screen.findByRole('list', { name: 'Kode pemulihan' }, { timeout: 3000 });
+    expect(within(kode).getAllByRole('listitem').map((li) => li.textContent)).toEqual(['abcde-fghjk', 'mnpqr-stuvw']);
+
+    const lanjut = screen.getByRole('button', { name: 'Lanjut ke SEKAR' });
+    expect(lanjut).toBeDisabled();
+    await u.click(screen.getByLabelText('Saya sudah menyimpan kode pemulihan ini'));
+    await u.click(lanjut);
+    expect(await screen.findByRole('heading', { name: 'Selamat Datang di SEKAR' })).toBeInTheDocument();
   });
 });
 
@@ -226,5 +296,91 @@ describe('transaksi', () => {
     expect((await screen.findAllByText('DP dekorasi')).length).toBeGreaterThan(0);
     const post = panggilan.find((p) => p.method === 'POST' && p.path === '/event/7/transaksi')!;
     expect(post.body).toMatchObject({ keterangan: 'DP dekorasi', kategoriId: '2', nominal: '750000', metodeId: '1' });
+  });
+});
+
+describe('unggah berkas', () => {
+  afterEach(() => {
+    kendaliUnggah.tahan = false;
+  });
+
+  it('menampilkan persentase progres saat dokumen diunggah', async () => {
+    let dokumen: unknown[] = [];
+    pasangApiPalsu({
+      ...ruteDasar(USER_ADMIN, [buatEvent()]),
+      'GET /event/:id/dokumen': () => ({ json: { dokumen } }),
+      'POST /event/:id/dokumen': () => {
+        dokumen = [
+          {
+            id: 1,
+            nama: 'Proposal Sponsor',
+            jenis: { id: 1, nama: 'Proposal' },
+            status: 'draft',
+            file: { nama: 'proposal.pdf', ext: 'pdf', ukuran: 2048 },
+            diunggahOleh: { id: 1, nama: 'Admin Uji' },
+            diunggahPada: '2025-04-12T03:00:00.000Z',
+          },
+        ];
+        return { status: 201, json: { dokumen: dokumen[0] } };
+      },
+    });
+    const u = userEvent.setup();
+    renderApp('/administrasi');
+    await u.click(await screen.findByRole('button', { name: 'Upload Dokumen' }));
+    const dialog = screen.getByRole('dialog', { name: 'Upload Dokumen' });
+    const input = dialog.querySelector<HTMLInputElement>('input[type=file]')!;
+    await u.upload(input, new File(['%PDF-1.4'], 'proposal.pdf', { type: 'application/pdf' }));
+    expect(within(dialog).getByLabelText('Nama dokumen')).toHaveValue('proposal');
+
+    kendaliUnggah.tahan = true;
+    await u.click(within(dialog).getByRole('button', { name: 'Unggah' }));
+    const progres = await within(dialog).findByRole('progressbar', { name: 'Unggah proposal.pdf' });
+    await waitFor(() => expect(progres).toHaveAttribute('aria-valuenow', '50'));
+    expect(within(dialog).getByRole('button', { name: 'Mengunggah 50%' })).toBeDisabled();
+
+    kendaliUnggah.lepas();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(await screen.findByText('Proposal Sponsor')).toBeInTheDocument();
+  });
+
+  it('menolak berkas di atas batas unggah server sebelum dikirim', async () => {
+    const panggilan = pasangApiPalsu({ ...ruteDasar(USER_ADMIN, [buatEvent()]), 'GET /event/:id/dokumen': () => ({ json: { dokumen: [] } }) });
+    const u = userEvent.setup();
+    renderApp('/administrasi');
+    await u.click(await screen.findByRole('button', { name: 'Upload Dokumen' }));
+    const dialog = screen.getByRole('dialog', { name: 'Upload Dokumen' });
+    const besar = new File(['x'], 'video.pdf', { type: 'application/pdf' });
+    Object.defineProperty(besar, 'size', { value: 11 * 1024 * 1024 });
+    await u.upload(dialog.querySelector<HTMLInputElement>('input[type=file]')!, besar);
+    await u.click(within(dialog).getByRole('button', { name: 'Unggah' }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Ukuran berkas maksimal 10 MB');
+    expect(panggilan.some((p) => p.method === 'POST')).toBe(false);
+  });
+});
+
+describe('impor peserta', () => {
+  it('modal impor menjelaskan format, menampilkan pratinjau, lalu mengirim peserta', async () => {
+    const panggilan = pasangApiPalsu({
+      ...ruteDasar(USER_ADMIN, [buatEvent()]),
+      'GET /event/:id/peserta': () => ({ json: { peserta: [] } }),
+      'POST /event/:id/peserta/impor': ({ body }) => ({ status: 201, json: { jumlah: (body as { peserta: unknown[] }).peserta.length } }),
+    });
+    const u = userEvent.setup();
+    renderApp('/administrasi?tab=peserta');
+    await u.click(await screen.findByRole('button', { name: 'Impor CSV' }));
+    const dialog = screen.getByRole('dialog', { name: 'Impor peserta dari CSV' });
+    expect(within(dialog).getByText('kehadiran')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Impor' })).toBeDisabled();
+
+    const csv = 'nama;email;tipe\nBudi Santoso;budi@contoh.id;umum\n;tanpa-nama@contoh.id;mitra\nSari Dewi;sari@contoh.id;mitra\n';
+    await u.upload(dialog.querySelector<HTMLInputElement>('input[type=file]')!, new File([csv], 'peserta.csv', { type: 'text/csv' }));
+    expect(await within(dialog).findByText('2 peserta')).toBeInTheDocument();
+    expect(dialog).toHaveTextContent('1 baris tanpa nama akan dilewati');
+
+    await u.click(within(dialog).getByRole('button', { name: 'Impor 2 Peserta' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(panggilan.find((p) => p.path === '/event/7/peserta/impor')!.body).toMatchObject({
+      peserta: [expect.objectContaining({ nama: 'Budi Santoso', tipe: 'umum' }), expect.objectContaining({ nama: 'Sari Dewi', tipe: 'mitra' })],
+    });
   });
 });

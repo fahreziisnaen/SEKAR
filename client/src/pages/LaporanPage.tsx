@@ -58,7 +58,7 @@ function useDataLaporan(jenis: Jenis, event: EventRingkas, rentang: { dari: stri
 }
 
 function Ringkasan({ event }: { event: EventDetail | undefined }) {
-  return event ? <EventOverview event={event} /> : <Memuat />;
+  return event ? <EventOverview event={event} /> : <Memuat varian="tabel" baris={6} className="rounded-[20px] border border-line bg-white" />;
 }
 
 export function LaporanPage() {
@@ -155,7 +155,7 @@ export function LaporanPage() {
   let isi: ReactNode;
   if (jenis === 'ringkasan') isi = detail.isError ? <GagalMemuat error={detail.error} onRetry={() => void detail.refetch()} /> : <Ringkasan event={detail.data} />;
   else if (antarEvent)
-    isi = rekap.isPending ? <Memuat /> : rekap.isError ? <GagalMemuat error={rekap.error} onRetry={() => void rekap.refetch()} /> : <RekapEvent rows={rekap.data} organisasi={org?.nama ?? null} />;
+    isi = rekap.isPending ? <Memuat varian="tabel" baris={6} className="rounded-[20px] border border-line bg-white" /> : rekap.isError ? <GagalMemuat error={rekap.error} onRetry={() => void rekap.refetch()} /> : <RekapEvent rows={rekap.data} organisasi={org?.nama ?? null} />;
   else if (jenis === 'administrasi') {
     const qs = [detail, dokumen, peserta, vendor, tugas];
     const gagal = qs.find((q) => q.isError);
@@ -164,9 +164,9 @@ export function LaporanPage() {
     ) : detail.data && dokumen.data && peserta.data && vendor.data && tugas.data ? (
       <LaporanAdministrasi event={detail.data} data={{ dokumen: dokumen.data, peserta: peserta.data, vendor: vendor.data, tugas: tugas.data }} />
     ) : (
-      <Memuat />
+      <Memuat varian="tabel" baris={6} className="rounded-[20px] border border-line bg-white" />
     );
-  } else isi = tx.isPending ? <Memuat /> : tx.isError ? <GagalMemuat error={tx.error} onRetry={() => void tx.refetch()} /> : <LaporanKeuangan event={event} r={r} jenis={jenis} />;
+  } else isi = tx.isPending ? <Memuat varian="tabel" baris={6} className="rounded-[20px] border border-line bg-white" /> : tx.isError ? <GagalMemuat error={tx.error} onRetry={() => void tx.refetch()} /> : <LaporanKeuangan event={event} r={r} jenis={jenis} />;
 
   return (
     <div className="flex animate-fade-up flex-col gap-5">

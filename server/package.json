@@ -26,6 +26,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.4.0",
     "prisma": "7.10.0",
+    "qrcode-generator": "^2.0.4",
     "tsx": "^4.23.15",
     "zod": "^4.6.5"
   },

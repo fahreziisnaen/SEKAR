@@ -1,11 +1,13 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { Icon } from '../components/icons';
+import { InputTanggal } from '../components/InputTanggal';
+import { labelUnggah, ProgresUnggah } from '../components/ProgresUnggah';
 import { PesanGalat } from '../components/Status';
 import { useToast } from '../components/Toast';
 import { Button, Card, Field, Input, MoneyInput, Select, TextArea, cx } from '../components/ui';
 import { useEventAktif } from '../hooks/eventAktif';
-import { useBuatEvent, useIzin, useMaster, usePengguna, useUnggahDokumen } from '../hooks/queries';
+import { useBuatEvent, useCekUkuranBerkas, useIzin, useMaster, usePengguna, useUnggahDokumen } from '../hooks/queries';
 import { errorMessage } from '../lib/api';
 import { formatTanggalPanjang, rupiah } from '../lib/format';
 import { namaDariFile, TERIMA_DOKUMEN } from '../features/dokumen/UnggahModal';
@@ -104,6 +106,8 @@ export function EventNewPage() {
   const pengguna = usePengguna();
   const buat = useBuatEvent();
   const unggah = useUnggahDokumen();
+  const cekUkuran = useCekUkuranBerkas();
+  const [sedangDiunggah, setSedangDiunggah] = useState('');
   const { pilih } = useEventAktif();
   const navigate = useNavigate();
   const toast = useToast();
@@ -140,6 +144,13 @@ export function EventNewPage() {
         return setErr(e);
       }
     }
+    for (const u of [proposal, dokAwal]) {
+      const terlaluBesar = u.file ? cekUkuran(u.file) : '';
+      if (terlaluBesar) {
+        setLangkah(4);
+        return setErr(`${u.file!.name}: ${terlaluBesar}`);
+      }
+    }
     let eventId: number;
     try {
       const ev = await buat.mutateAsync({
@@ -167,12 +178,14 @@ export function EventNewPage() {
       [dokAwal, /rundown/i],
     ] as const) {
       if (!u.file) continue;
+      setSedangDiunggah(u.file.name);
       try {
         await unggah.mutateAsync({ eventId, nama: namaDariFile(u.file.name), jenisId: u.jenisId || jenisBawaan(jenis, pola), file: u.file });
       } catch (e) {
         gagal.push(`${u.file.name}: ${errorMessage(e)}`);
       }
     }
+    setSedangDiunggah('');
     pilih(eventId);
     toast(gagal.length ? `Event dibuat, tetapi ${gagal.length} dokumen gagal diunggah` : `Event “${d.nama.trim()}” berhasil dibuat`);
     navigate(`/event/${eventId}`);
@@ -245,7 +258,7 @@ export function EventNewPage() {
             </Field>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-4">
               <Field label="Tanggal *">
-                <Input type="date" value={d.tanggal} onChange={(e) => ubah({ tanggal: e.target.value })} className="py-[11px]" />
+                <InputTanggal value={d.tanggal} onChange={(tanggal) => ubah({ tanggal })} />
               </Field>
               <Field label="Jam">
                 <Input value={d.waktu} maxLength={60} onChange={(e) => ubah({ waktu: e.target.value })} placeholder="08.00 – 17.00 WIB" />
@@ -351,6 +364,7 @@ export function EventNewPage() {
           </div>
         )}
 
+        <ProgresUnggah progres={unggah.progres} nama={sedangDiunggah} />
         <PesanGalat>{err}</PesanGalat>
         <div className="flex justify-between gap-3 border-t border-line-soft pt-1.5">
           {langkah > 1 && (
@@ -372,7 +386,7 @@ export function EventNewPage() {
             </Button>
           ) : (
             <Button variant="accent" onClick={() => void kirim()} disabled={memproses} className="mt-4 px-[22px] py-3 text-sm disabled:opacity-60">
-              {memproses ? 'Menyimpan…' : 'Buat Event'}
+              {unggah.isPending ? labelUnggah(unggah.progres, 'Mengunggah…') : memproses ? 'Menyimpan…' : 'Buat Event'}
             </Button>
           )}
         </div>

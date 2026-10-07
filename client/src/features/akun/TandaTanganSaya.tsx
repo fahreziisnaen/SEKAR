@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { labelUnggah, ProgresUnggah } from '../../components/ProgresUnggah';
 import { Konfirmasi } from '../../components/Status';
 import { useToast } from '../../components/Toast';
 import { Button } from '../../components/ui';
@@ -16,10 +17,12 @@ export function TandaTanganSaya() {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [pratinjau, setPratinjau] = useState<string | null>(null);
+  const [gagalMuat, setGagalMuat] = useState(false);
   const [konfirmasi, setKonfirmasi] = useState(false);
   const path = me ? pathTandaTangan(me.id, me.tandaTangan) : null;
 
   useEffect(() => {
+    setGagalMuat(false);
     if (!path) {
       setPratinjau(null);
       return;
@@ -32,7 +35,11 @@ export function TandaTanganSaya() {
         url = URL.createObjectURL(blob);
         setPratinjau(url);
       })
-      .catch(() => aktif && setPratinjau(null));
+      .catch(() => {
+        if (!aktif) return;
+        setPratinjau(null);
+        setGagalMuat(true);
+      });
     return () => {
       aktif = false;
       if (url) URL.revokeObjectURL(url);
@@ -60,14 +67,14 @@ export function TandaTanganSaya() {
           {pratinjau ? (
             <img src={pratinjau} alt={`Tanda tangan ${me?.nama ?? ''}`} className="max-h-[80px] max-w-[220px] object-contain mix-blend-multiply" />
           ) : (
-            <span className="px-4 text-center text-xs text-ink-muted">{path ? 'Memuat…' : 'Belum ada tanda tangan'}</span>
+            <span className="px-4 text-center text-xs text-ink-muted">{!path ? 'Belum ada tanda tangan' : gagalMuat ? 'Gambar tidak dapat dimuat. Unggah ulang.' : 'Memuat…'}</span>
           )}
         </div>
         <div className="flex flex-col gap-2">
           <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => pilih(e.target.files?.[0])} />
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => fileRef.current?.click()} disabled={unggah.isPending} className="px-3.5 py-2 text-[13px] disabled:opacity-60">
-              {unggah.isPending ? 'Mengunggah…' : me?.tandaTangan ? 'Ganti Tanda Tangan' : 'Unggah Tanda Tangan'}
+              {labelUnggah(unggah.progres, me?.tandaTangan ? 'Ganti Tanda Tangan' : 'Unggah Tanda Tangan')}
             </Button>
             {me?.tandaTangan && (
               <Button variant="secondary" onClick={() => setKonfirmasi(true)} className="px-3.5 py-2 text-[13px]">
@@ -75,6 +82,7 @@ export function TandaTanganSaya() {
               </Button>
             )}
           </div>
+          <ProgresUnggah progres={unggah.progres} nama="tanda tangan" className="max-w-[340px]" />
           <span className="max-w-[340px] text-xs leading-normal text-ink-muted">
             PNG transparan disarankan; JPG/WEBP berlatar putih juga bisa (latar putih otomatis menyatu). Maks. 2 MB. Dipakai otomatis pada Bukti Penerimaan
             Dana yang Anda catat atau event yang Anda pimpin sebagai PIC.

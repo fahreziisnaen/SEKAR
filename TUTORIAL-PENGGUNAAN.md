@@ -10,7 +10,7 @@ Panduan ini untuk semua pengguna SEKAR. Bagian yang hanya bisa dilakukan peran t
 2. [Mengenal tampilan](#2-mengenal-tampilan)
 3. [Peran dan hak akses](#3-peran-dan-hak-akses)
 4. [Persiapan awal (Admin)](#4-persiapan-awal-admin)
-5. [Akun Saya: tanda tangan dan kata sandi](#5-akun-saya-tanda-tangan-dan-kata-sandi)
+5. [Akun Saya: tanda tangan, verifikasi dua langkah, dan kata sandi](#5-akun-saya-tanda-tangan-verifikasi-dua-langkah-dan-kata-sandi)
 6. [Event](#6-event)
 7. [Keuangan](#7-keuangan)
 8. [Bukti Penerimaan Dana](#8-bukti-penerimaan-dana)
@@ -26,10 +26,24 @@ Panduan ini untuk semua pengguna SEKAR. Bagian yang hanya bisa dilakukan peran t
 ### Masuk
 
 1. Buka alamat SEKAR yang diberikan admin.
-2. Isi **Email** dan **Kata sandi**, lalu klik **Masuk**.
+2. Isi **Username** dan **Kata sandi**, lalu klik **Masuk**. Username diberikan admin, misalnya `fajar.nugroho`; huruf besar/kecil tidak berpengaruh.
 3. Centang **Ingat saya** hanya di perangkat pribadi. Dengan opsi ini, Anda tetap masuk walaupun browser ditutup.
+4. Bila akun Anda memakai verifikasi dua langkah, jendela **Verifikasi dua langkah** muncul. Buka aplikasi Google Authenticator di ponsel, lalu ketik 6 digit kode untuk SEKAR. Kode langsung diperiksa begitu digit keenam terisi; Anda tidak perlu menekan tombol.
+   - Bila kode benar, muncul tanda centang hijau dan Anda otomatis masuk.
+   - Bila kode salah, kotak kode bergetar merah dan dikosongkan. Ketik ulang kode yang sedang tampil di aplikasi.
+   - Kode di aplikasi berganti setiap 30 detik. Lingkaran kecil di bawah kotak kode menunjukkan sisa waktunya.
 
-Setelah beberapa kali salah memasukkan kata sandi, akun dikunci sementara. Tunggu 15 menit sebelum mencoba lagi.
+Setelah beberapa kali salah memasukkan kata sandi atau kode, akun dikunci sementara. Tunggu 15 menit sebelum mencoba lagi.
+
+### Diminta memasang Google Authenticator saat masuk
+
+Bila organisasi mewajibkan verifikasi dua langkah dan Anda belum memasangnya, SEKAR langsung menampilkan layar pemasangan setelah kata sandi benar. Ikuti langkah di [bagian 5](#verifikasi-dua-langkah-google-authenticator); setelah selesai, Anda langsung masuk ke aplikasi.
+
+### Ponsel tidak tersedia
+
+Di jendela **Verifikasi dua langkah**, klik **Ponsel tidak tersedia? Pakai kode pemulihan**, lalu ketik salah satu kode pemulihan yang Anda simpan saat memasang (contoh: `abcde-fghjk`). Setiap kode hanya bisa dipakai sekali.
+
+Bila ponsel hilang dan kode pemulihan juga tidak ada, hubungi admin untuk mereset verifikasi dua langkah Anda.
 
 ### Lupa kata sandi
 
@@ -39,7 +53,7 @@ SEKAR tidak mengirim email reset kata sandi. Hubungi admin organisasi Anda. Admi
 
 Klik **Keluar** di bagian bawah menu samping kiri.
 
-Anda otomatis diminta masuk lagi kalau kata sandi Anda baru diganti, peran Anda diubah admin, atau akun Anda dinonaktifkan.
+Anda otomatis diminta masuk lagi kalau kata sandi Anda baru diganti, peran atau username Anda diubah admin, verifikasi dua langkah Anda direset admin, atau akun Anda dinonaktifkan.
 
 ---
 
@@ -80,11 +94,11 @@ Setiap pengguna punya satu peran. Tombol untuk tindakan yang tidak diizinkan tid
 | Tindakan | Admin | Bendahara | Anggota Tim | Peninjau |
 | --- | :---: | :---: | :---: | :---: |
 | Melihat semua data dan laporan | ✓ | ✓ | ✓ | ✓ |
-| Mengatur tanda tangan dan kata sandi sendiri | ✓ | ✓ | ✓ | ✓ |
+| Mengatur tanda tangan, kata sandi, dan verifikasi dua langkah sendiri | ✓ | ✓ | ✓ | ✓ |
 | Membuat dan mengubah event, kebutuhan, dokumen, peserta, vendor | ✓ | ✓ | ✓ | |
 | Mencatat dan menghapus transaksi, mengatur budget per kategori | ✓ | ✓ | | |
 | Menghapus event | ✓ | | | |
-| Mengelola pengguna dan pengaturan organisasi | ✓ | | | |
+| Mengelola pengguna, pengaturan organisasi, dan keamanan (wajib MFA, reset MFA) | ✓ | | | |
 
 ---
 
@@ -103,21 +117,23 @@ Lakukan langkah berikut sekali setelah SEKAR dipasang. Semuanya ada di menu **Pe
 
 1. Buka **Pengaturan › Pengguna**, lalu klik **+ Undang Pengguna**.
 2. Isi data berikut, lalu klik **Simpan**:
-   - **Nama** dan **Email** (wajib).
+   - **Nama** dan **Username** (wajib). Username dipakai untuk masuk: 3–32 karakter berupa huruf kecil, angka, titik, garis bawah, atau tanda hubung, misalnya `fajar.nugroho`.
+   - **Email** (opsional, hanya sebagai kontak).
    - **Peran** (lihat [bagian 3](#3-peran-dan-hak-akses)).
    - **Jabatan di tim**, **Telepon**, dan **Tanggung jawab**.
    - **Kata sandi awal** (minimal 8 karakter, wajib).
-3. **Sampaikan email dan kata sandi awal kepada orang tersebut secara langsung.** SEKAR tidak mengirim email undangan. Minta mereka segera mengganti kata sandinya.
+3. **Sampaikan username dan kata sandi awal kepada orang tersebut secara langsung.** SEKAR tidak mengirim email undangan. Minta mereka segera mengganti kata sandinya dan mengaktifkan verifikasi dua langkah.
 
 Untuk mengubah pengguna, klik namanya di daftar. Dari sana Anda bisa:
 
-- Mengganti peran.
+- Mengganti peran atau username.
 - Mengatur ulang kata sandi lewat kolom **Reset kata sandi**. Kosongkan kolom ini bila kata sandi tidak diubah.
+- Mereset verifikasi dua langkah lewat tombol **Reset MFA**, misalnya bila ponsel pengguna hilang atau berganti. Semua sesi pengguna itu diakhiri; ia bisa masuk dengan kata sandi saja, atau diminta memasang ulang bila MFA diwajibkan.
 - Menonaktifkan akun dengan menghilangkan centang **Akun aktif**. Pengguna nonaktif tidak bisa masuk, tetapi riwayat datanya tetap tersimpan.
 
-Kolom tanda tangan di daftar pengguna menunjukkan siapa saja yang sudah mengunggah tanda tangan.
+Daftar pengguna juga menunjukkan siapa saja yang sudah memakai verifikasi dua langkah (**MFA**) dan sudah mengunggah tanda tangan.
 
-Buat minimal **dua akun Admin**. Admin yang lupa kata sandi hanya bisa di-reset oleh admin lain.
+Buat minimal **dua akun Admin**. Admin yang lupa kata sandi atau kehilangan ponsel hanya bisa di-reset oleh admin lain.
 
 ### 4.3 Kategori Keuangan
 
@@ -144,9 +160,19 @@ Di **Pengaturan › Notifikasi**, aktifkan atau matikan dua jenis pengingat:
 - **Pengingat tenggat**
 - **Peringatan keuangan**
 
+### 4.6 Keamanan: wajibkan verifikasi dua langkah
+
+Di **Pengaturan › Keamanan**, nyalakan **Wajibkan verifikasi dua langkah (MFA)** agar semua pengguna wajib memasukkan kode Google Authenticator saat masuk.
+
+1. Aktifkan dulu verifikasi dua langkah di akun Anda sendiri (lihat [bagian 5](#verifikasi-dua-langkah-google-authenticator)). Sebelum itu, saklarnya tidak bisa dinyalakan agar Anda tidak terkunci.
+2. Nyalakan saklarnya.
+3. Pengguna yang belum memasang akan diminta memasangnya saat masuk berikutnya. Pengguna yang sedang masuk juga langsung diminta memasang sebelum bisa memakai aplikasi.
+
+Selama aturan ini aktif, pengguna tidak bisa mematikan verifikasi dua langkahnya sendiri.
+
 ---
 
-## 5. Akun Saya: tanda tangan dan kata sandi
+## 5. Akun Saya: tanda tangan, verifikasi dua langkah, dan kata sandi
 
 Semua peran bisa membuka **Pengaturan › Akun Saya**.
 
@@ -166,6 +192,29 @@ Cara mengunggah:
    - Latar putih pada foto otomatis menyatu dengan bukti.
 
 Gunakan **Ganti Tanda Tangan** untuk memperbarui, atau **Hapus** untuk menghapusnya. Hanya Anda sendiri yang bisa mengubah tanda tangan Anda.
+
+### Verifikasi dua langkah (Google Authenticator)
+
+Dengan verifikasi dua langkah, masuk ke SEKAR butuh kata sandi **dan** kode 6 digit dari ponsel Anda. Akun tetap aman walaupun kata sandi diketahui orang lain.
+
+Cara memasang:
+
+1. Pasang aplikasi **Google Authenticator** di ponsel (gratis di Play Store / App Store). Microsoft Authenticator atau Authy juga bisa.
+2. Di SEKAR, buka **Pengaturan › Akun Saya**, lalu klik **Aktifkan Verifikasi Dua Langkah**.
+3. Di aplikasi authenticator, ketuk **+** (Tambah kode) → **Pindai kode QR**, lalu arahkan kamera ke QR di layar.
+   - Bila tidak bisa memindai, pilih **Masukkan kunci penyiapan** dan ketik kunci yang tampil di bawah QR.
+4. Ketik 6 digit kode yang muncul di aplikasi ke kotak **Kode dari aplikasi**. Kode langsung diperiksa begitu lengkap; bila salah, kotak bergetar merah dan bisa diketik ulang.
+5. SEKAR menampilkan **10 kode pemulihan**. Simpan kode ini di tempat aman: klik **Salin semua** atau **Unduh .txt**, atau tulis di kertas. Kode ini tidak akan ditampilkan lagi.
+6. Centang **Saya sudah menyimpan kode pemulihan ini**, lalu klik **Selesai**.
+
+Setelah aktif, sesi Anda di perangkat lain otomatis berakhir dan harus masuk ulang dengan kode.
+
+Di bagian yang sama Anda juga bisa:
+
+- Melihat sisa kode pemulihan. Bila tinggal sedikit, klik **Buat Ulang Kode Pemulihan** dan masukkan kode dari aplikasi. Semua kode lama tidak berlaku lagi.
+- Mematikan verifikasi dua langkah lewat **Nonaktifkan** (butuh kata sandi dan kode). Tombol ini tidak ada bila organisasi mewajibkan MFA.
+
+Ganti ponsel? Pindahkan akun di aplikasi authenticator ke ponsel baru (Google Authenticator punya fitur **Transfer akun**). Bila ponsel lama sudah tidak ada, masuk dengan kode pemulihan, lalu minta admin mereset MFA Anda dan pasang ulang.
 
 ### Mengganti kata sandi
 
@@ -357,8 +406,10 @@ Admin, Bendahara, dan Anggota Tim bisa menambah dan mengubah data di sini. Penin
 Untuk mengunggah dokumen:
 
 1. Klik **Upload Dokumen**.
-2. Pilih berkas (PDF, DOCX, XLSX, JPG, PNG, atau WEBP), isi **Nama dokumen**, dan pilih **Jenis**.
-3. Klik **Unggah**.
+2. Pilih berkas (PDF, DOCX, XLSX, JPG, PNG, atau WEBP; maksimal 10 MB), isi **Nama dokumen**, dan pilih **Jenis**.
+3. Klik **Unggah**. Selama berkas dikirim, bilah progres menampilkan persentasenya. Tunggu sampai jendela tertutup sendiri; jangan tutup halaman di tengah unggahan.
+
+Progres unggah yang sama juga tampil saat mengunggah bukti transaksi, logo organisasi, dan tanda tangan.
 
 Untuk dokumen yang sudah ada:
 
@@ -392,7 +443,9 @@ Untuk mengubah status registrasi (Menunggu atau Terverifikasi) dan kehadiran (Be
    - Nilai yang diterima untuk **registrasi**: `menunggu`, `terverifikasi`.
    - Nilai yang diterima untuk **kehadiran**: `belum`, `hadir`, `tidak hadir`.
 2. Simpan dengan **File › Save As › CSV**.
-3. Klik **Impor CSV**, lalu pilih berkasnya. Baris tanpa nama akan dilewati.
+3. Klik **Impor CSV**. Jendela panduan menampilkan daftar kolom yang diterima dan tombol **Unduh contoh CSV** berisi templat siap pakai.
+4. Tarik berkas ke jendela itu atau klik **pilih berkas**. SEKAR menampilkan jumlah peserta yang siap diimpor; baris tanpa nama akan dilewati.
+5. Klik **Impor _n_ Peserta**.
 
 ### 9.3 Vendor
 
@@ -480,10 +533,22 @@ Transaksi tidak bisa diubah. Hapus transaksi tersebut, lalu catat ulang (lihat [
 Kategori atau metode itu sudah dipakai oleh transaksi. Ini mencegah data lama kehilangan kategorinya.
 
 **Tiba-tiba diminta masuk lagi.**
-Sesi Anda berakhir. Penyebabnya bisa karena kata sandi diganti, peran diubah, akun dinonaktifkan, atau sudah lama tidak aktif. Masuk kembali seperti biasa.
+Sesi Anda berakhir. Penyebabnya bisa karena kata sandi diganti, peran atau username diubah, MFA direset admin, akun dinonaktifkan, atau sudah lama tidak aktif. Masuk kembali seperti biasa.
+
+**Saya lupa username.**
+Tanyakan ke admin. Username tampil di **Pengaturan › Pengguna** (diawali `@`).
+
+**Kode Google Authenticator selalu ditolak.**
+Pastikan Anda memakai kode untuk akun **SEKAR** dan kode yang sedang tampil (berganti setiap 30 detik). Bila tetap ditolak, jam ponsel kemungkinan tidak tepat: aktifkan **Tanggal & waktu otomatis** di pengaturan ponsel. Di Google Authenticator Android juga ada menu **Koreksi waktu untuk kode**.
+
+**Layar "Pasang verifikasi dua langkah" muncul dan aplikasi tidak bisa dipakai.**
+Admin mewajibkan verifikasi dua langkah. Pasang Google Authenticator mengikuti petunjuk di layar (lihat [bagian 5](#verifikasi-dua-langkah-google-authenticator)), lalu Anda bisa melanjutkan.
+
+**Ponsel hilang.**
+Masuk dengan kode pemulihan (lihat [bagian 1](#ponsel-tidak-tersedia)). Setelah itu minta admin mereset MFA Anda, lalu pasang ulang di ponsel baru.
 
 **Unggahan berkas ditolak.**
-Periksa format dan ukuran berkas. SEKAR memeriksa isi berkas, bukan hanya namanya, jadi berkas yang ekstensinya diganti secara manual akan ditolak. Batas ukuran default 10 MB per berkas, dan 2 MB untuk tanda tangan.
+Periksa format dan ukuran berkas. SEKAR memeriksa isi berkas, bukan hanya namanya, jadi berkas yang ekstensinya diganti secara manual akan ditolak. Batas ukuran default 10 MB per berkas, dan 2 MB untuk tanda tangan; berkas yang terlalu besar langsung ditolak sebelum diunggah.
 
 **Tanda tangan saya tidak muncul di bukti.**
 Pastikan sudah mengunggah tanda tangan di **Pengaturan › Akun Saya**. Tanda tangan muncul di kolom "Dibuat oleh" bila Anda yang mencatat pemasukannya, dan di kolom "Mengetahui" bila Anda PIC event-nya.

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, matchPath, useLocation, useNavigate } from 'react-router';
 import { Icon, LogoSekar, type NamaIkon } from '../components/icons';
 import { GagalMemuat, Memuat } from '../components/Status';
@@ -194,7 +194,7 @@ function Notifikasi() {
           <div onClick={() => setBuka(false)} className="fixed inset-0 z-30" />
           <div className="absolute top-[52px] right-0 z-31 w-[min(340px,calc(100vw-32px))] animate-fade-up-quick rounded-[18px] border border-line bg-white p-2 shadow-pop">
             <div className="px-2.5 py-2 text-[11px] tracking-[.06em] text-ink-muted">NOTIFIKASI</div>
-            {q.isPending && <Memuat className="py-6" />}
+            {q.isPending && <Memuat baris={3} className="px-2.5 py-3" />}
             {!q.isPending && daftar.length === 0 && <div className="px-2.5 pt-1 pb-4 text-[13px] text-ink-muted">Tidak ada notifikasi.</div>}
             <div className="max-h-[60vh] overflow-y-auto">
               {daftar.map((n) => (
@@ -337,8 +337,12 @@ export function AppShell() {
   }, [pathname]);
 
   const bebas = TANPA_EVENT.includes(pathname);
-  let isi = <Outlet />;
-  if (!bebas && events.isPending) isi = <Memuat />;
+  let isi = (
+    <Suspense fallback={<Memuat varian="halaman" label="Memuat halaman…" />}>
+      <Outlet />
+    </Suspense>
+  );
+  if (!bebas && events.isPending) isi = <Memuat varian="halaman" />;
   else if (!bebas && events.isError) isi = <GagalMemuat onRetry={events.refetch} />;
   else if (!bebas && !events.event) isi = <BelumAdaEvent />;
 

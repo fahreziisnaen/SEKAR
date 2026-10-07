@@ -68,7 +68,7 @@ export function createApp() {
     res.json({ status: 'ok' });
   });
   api.get('/info', (_req, res) => {
-    res.json({ versi: VERSI, zonaWaktu: env.APP_TIMEZONE });
+    res.json({ versi: VERSI, zonaWaktu: env.APP_TIMEZONE, maksUnggahMb: env.MAX_UPLOAD_MB });
   });
   api.use('/auth', authRouter);
   api.use('/organisasi/publik', organisasiPublikRouter);

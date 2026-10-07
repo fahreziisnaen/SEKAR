@@ -9,9 +9,9 @@ beforeEach(resetDatabase);
 
 describe('event', () => {
   it('membuat event dengan tim dan kebutuhan dari template', async () => {
-    const admin = await createUser('admin@uji.id');
-    const anggota = await createUser('anggota@uji.id', 'anggota');
-    const sesi = await loginAs('admin@uji.id');
+    const admin = await createUser('admin');
+    const anggota = await createUser('anggota', 'anggota');
+    const sesi = await loginAs('admin');
     const tpl = await sesi.agent
       .post('/api/master/template')
       .set('x-csrf-token', sesi.token)
@@ -30,10 +30,10 @@ describe('event', () => {
   });
 
   it('memvalidasi input dan menolak PIC nonaktif', async () => {
-    const admin = await createUser('admin@uji.id');
-    const nonaktif = await createUser('lama@uji.id', 'anggota');
+    const admin = await createUser('admin');
+    const nonaktif = await createUser('lama', 'anggota');
     await prisma.pengguna.update({ where: { id: nonaktif.id }, data: { aktif: false } });
-    const sesi = await loginAs('admin@uji.id');
+    const sesi = await loginAs('admin');
     const kosong = await sesi.agent.post('/api/event').set('x-csrf-token', sesi.token).send({ tanggal: '2025-02-30', picId: admin.id });
     expect(kosong.status).toBe(400);
     const pic = await sesi.agent
@@ -45,19 +45,19 @@ describe('event', () => {
   });
 
   it('peninjau hanya dapat membaca', async () => {
-    const admin = await createUser('admin@uji.id');
-    await createUser('peninjau@uji.id', 'peninjau');
-    const ev = await createEvent(await loginAs('admin@uji.id'), admin.id);
-    const sesi = await loginAs('peninjau@uji.id');
+    const admin = await createUser('admin');
+    await createUser('peninjau', 'peninjau');
+    const ev = await createEvent(await loginAs('admin'), admin.id);
+    const sesi = await loginAs('peninjau');
     expect((await sesi.agent.get(`/api/event/${ev.id}`)).status).toBe(200);
     const buat = await sesi.agent.post('/api/event').set('x-csrf-token', sesi.token).send({ nama: 'X', tanggal: '2025-04-12', lokasi: 'Malang', picId: admin.id });
     expect(buat.status).toBe(403);
   });
 
   it('menghitung ringkasan keuangan dan progres dari kebutuhan', async () => {
-    const admin = await createUser('admin@uji.id');
+    const admin = await createUser('admin');
     const m = await createMaster();
-    const sesi = await loginAs('admin@uji.id');
+    const sesi = await loginAs('admin');
     const ev = await createEvent(sesi, admin.id);
     const tx = (kategoriId: number, nominal: number) =>
       sesi.agent.post(`/api/event/${ev.id}/transaksi`).set('x-csrf-token', sesi.token).send({ tanggal: '2025-04-01', keterangan: 'Uji', kategoriId, nominal, metodeId: m.metode.id, pihak: 'Pemberi Uji' });
@@ -73,9 +73,9 @@ describe('event', () => {
   });
 
   it('mengubah status, tahap, dan tim event', async () => {
-    const admin = await createUser('admin@uji.id');
-    const b = await createUser('b@uji.id', 'anggota');
-    const sesi = await loginAs('admin@uji.id');
+    const admin = await createUser('admin');
+    const b = await createUser('b', 'anggota');
+    const sesi = await loginAs('admin');
     const ev = await createEvent(sesi, admin.id);
     const res = await sesi.agent
       .put(`/api/event/${ev.id}`)
@@ -87,9 +87,9 @@ describe('event', () => {
   });
 
   it('menyimpan budget per kategori pengeluaran saja', async () => {
-    const admin = await createUser('admin@uji.id');
+    const admin = await createUser('admin');
     const m = await createMaster();
-    const sesi = await loginAs('admin@uji.id');
+    const sesi = await loginAs('admin');
     const ev = await createEvent(sesi, admin.id);
     const salah = await sesi.agent.put(`/api/event/${ev.id}/anggaran`).set('x-csrf-token', sesi.token).send({ items: [{ kategoriId: m.masuk.id, nominal: 1000 }] });
     expect(salah.status).toBe(400);
@@ -101,10 +101,10 @@ describe('event', () => {
   });
 
   it('menghapus event beserta berkas unggahannya (admin saja)', async () => {
-    const admin = await createUser('admin@uji.id');
-    await createUser('anggota@uji.id', 'anggota');
+    const admin = await createUser('admin');
+    await createUser('anggota', 'anggota');
     const m = await createMaster();
-    const sesi = await loginAs('admin@uji.id');
+    const sesi = await loginAs('admin');
     const ev = await createEvent(sesi, admin.id);
     const dok = await sesi.agent
       .post(`/api/event/${ev.id}/dokumen`)
@@ -117,7 +117,7 @@ describe('event', () => {
     const file = path.join(env.privateUploadRoot, row.filePath);
     expect(existsSync(file)).toBe(true);
 
-    const anggota = await loginAs('anggota@uji.id');
+    const anggota = await loginAs('anggota');
     expect((await anggota.agent.delete(`/api/event/${ev.id}`).set('x-csrf-token', anggota.token)).status).toBe(403);
     expect((await sesi.agent.delete(`/api/event/${ev.id}`).set('x-csrf-token', sesi.token)).status).toBe(204);
     expect(existsSync(file)).toBe(false);

@@ -12,12 +12,31 @@ export type Kehadiran = 'belum' | 'hadir' | 'tidak_hadir';
 export interface SessionUser {
   id: number;
   nama: string;
-  email: string;
+  username: string;
+  email: string | null;
   peran: Peran;
   jabatan: string | null;
   izin: Izin[];
   /** Versi tanda tangan (cap waktu unggah) atau null bila belum mengunggah. */
   tandaTangan: string | null;
+  /** `wajib`: organisasi mewajibkan MFA untuk semua pengguna. */
+  mfa: { aktif: boolean; wajib: boolean };
+}
+
+/** Data pemasangan Google Authenticator. */
+export interface DataPasangMfa {
+  /** Rahasia base32 untuk diketik manual, dikelompokkan per 4 karakter. */
+  rahasia: string;
+  uri: string;
+  /** Gambar QR (data URL). */
+  qr: string;
+}
+
+export interface StatusMfa {
+  aktif: boolean;
+  aktifSejak: string | null;
+  wajib: boolean;
+  sisaKodePemulihan: number;
 }
 
 /** Pengguna ringkas beserta versi tanda tangannya (PIC, pencatat transaksi). */
@@ -38,6 +57,7 @@ export interface Organisasi {
   logoUrl: string | null;
   notifPengingatTenggat: boolean;
   notifPeringatanKeuangan: boolean;
+  wajibMfa: boolean;
 }
 
 export interface OrganisasiPublik {
@@ -48,18 +68,22 @@ export interface OrganisasiPublik {
 export interface InfoAplikasi {
   versi: string;
   zonaWaktu: string;
+  /** Batas ukuran satu berkas unggahan (MAX_UPLOAD_MB server). */
+  maksUnggahMb: number;
 }
 
 export interface Pengguna {
   id: number;
   nama: string;
-  email: string;
+  username: string;
+  email: string | null;
   peran: Peran;
   aktif: boolean;
   jabatan: string | null;
   telepon: string | null;
   tanggungJawab: string | null;
   tandaTangan: string | null;
+  mfaAktif: boolean;
 }
 
 export interface AnggotaTim {

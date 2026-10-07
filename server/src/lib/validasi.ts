@@ -32,4 +32,23 @@ export function idWajib(label: string) {
   return z.coerce.number({ error: `${label} wajib dipilih.` }).int().positive(`${label} wajib dipilih.`);
 }
 
-export const email = z.string({ error: 'Email wajib diisi.' }).trim().toLowerCase().email('Format email tidak valid.').max(160);
+
+export const POLA_USERNAME = /^[a-z0-9][a-z0-9._-]*$/;
+
+/** Username login: huruf kecil, angka, titik, garis bawah, tanda hubung; diawali huruf/angka. */
+export const username = z
+  .string({ error: 'Username wajib diisi.' })
+  .trim()
+  .toLowerCase()
+  .min(3, 'Username minimal 3 karakter.')
+  .max(32, 'Username maksimal 32 karakter.')
+  .regex(POLA_USERNAME, 'Username hanya boleh huruf, angka, titik, garis bawah, atau tanda hubung, dan diawali huruf/angka.');
+
+/** Email kontak opsional; string kosong disimpan sebagai null. */
+export const emailOpsional = z
+  .string()
+  .trim()
+  .max(160, 'Email maksimal 160 karakter.')
+  .nullish()
+  .transform((v) => (v ? v.toLowerCase() : null))
+  .refine((v) => v === null || z.email().safeParse(v).success, 'Format email tidak valid.');

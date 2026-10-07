@@ -5,58 +5,69 @@ beforeEach(resetDatabase);
 
 describe('pengguna', () => {
   it('admin membuat pengguna; selain admin ditolak', async () => {
-    await createUser('admin@uji.id');
-    await createUser('anggota@uji.id', 'anggota');
-    const admin = await loginAs('admin@uji.id');
+    await createUser('admin');
+    await createUser('anggota', 'anggota');
+    const admin = await loginAs('admin');
     const res = await admin.agent
       .post('/api/pengguna')
       .set('x-csrf-token', admin.token)
-      .send({ nama: 'Fajar', email: 'fajar@uji.id', peran: 'bendahara', jabatan: 'Finance', kataSandi: 'sandi-awal-123' });
+      .send({ nama: 'Fajar', username: 'Fajar.N', email: 'fajar@uji.id', peran: 'bendahara', jabatan: 'Finance', kataSandi: 'sandi-awal-123' });
     expect(res.status).toBe(201);
-    expect(res.body.pengguna).toMatchObject({ email: 'fajar@uji.id', peran: 'bendahara', aktif: true, jabatan: 'Finance' });
+    expect(res.body.pengguna).toMatchObject({ username: 'fajar.n', email: 'fajar@uji.id', peran: 'bendahara', aktif: true, jabatan: 'Finance', mfaAktif: false });
     expect(res.body.pengguna.passwordHash).toBeUndefined();
+    expect((await loginAs('fajar.n', 'sandi-awal-123')).login.status).toBe(200);
 
-    const dobel = await admin.agent.post('/api/pengguna').set('x-csrf-token', admin.token).send({ nama: 'F', email: 'FAJAR@uji.id', peran: 'anggota', kataSandi: 'sandi-awal-123' });
-    expect(dobel.status).toBe(409);
+    const kirim = (data: Record<string, unknown>) => admin.agent.post('/api/pengguna').set('x-csrf-token', admin.token).send({ nama: 'F', peran: 'anggota', kataSandi: 'sandi-awal-123', ...data });
+    const dobelUsername = await kirim({ username: 'FAJAR.N' });
+    expect(dobelUsername.status).toBe(409);
+    expect(dobelUsername.body.details[0].path).toBe('username');
+    const dobelEmail = await kirim({ username: 'fajar2', email: 'FAJAR@uji.id' });
+    expect(dobelEmail.status).toBe(409);
+    expect(dobelEmail.body.details[0].path).toBe('email');
+    expect((await kirim({ username: 'ab' })).status).toBe(400);
+    expect((await kirim({ username: 'nama dengan spasi' })).status).toBe(400);
+    // Email opsional.
+    expect((await kirim({ username: 'tanpa-email' })).status).toBe(201);
 
-    const anggota = await loginAs('anggota@uji.id');
-    const tolak = await anggota.agent.post('/api/pengguna').set('x-csrf-token', anggota.token).send({ nama: 'X', email: 'x@uji.id', peran: 'admin', kataSandi: 'sandi-awal-123' });
+    const anggota = await loginAs('anggota');
+    const tolak = await anggota.agent.post('/api/pengguna').set('x-csrf-token', anggota.token).send({ nama: 'X', username: 'x-baru', peran: 'admin', kataSandi: 'sandi-awal-123' });
     expect(tolak.status).toBe(403);
   });
 
   it('menonaktifkan pengguna mencabut sesinya dan melindungi admin terakhir', async () => {
-    const a = await createUser('admin@uji.id');
-    const b = await createUser('anggota@uji.id', 'anggota');
-    const admin = await loginAs('admin@uji.id');
-    const anggota = await loginAs('anggota@uji.id');
+    const a = await createUser('admin');
+    const b = await createUser('anggota', 'anggota');
+    const admin = await loginAs('admin');
+    const anggota = await loginAs('anggota');
     expect((await anggota.agent.get('/api/event')).status).toBe(200);
 
     const nonaktif = await admin.agent
       .put(`/api/pengguna/${b.id}`)
       .set('x-csrf-token', admin.token)
-      .send({ nama: b.nama, email: b.email, peran: 'anggota', aktif: false });
+      .send({ nama: b.nama, username: b.username, peran: 'anggota', aktif: false });
     expect(nonaktif.status).toBe(200);
     expect((await anggota.agent.get('/api/event')).status).toBe(401);
 
-    const diriSendiri = await admin.agent.put(`/api/pengguna/${a.id}`).set('x-csrf-token', admin.token).send({ nama: a.nama, email: a.email, peran: 'anggota', aktif: true });
+    const diriSendiri = await admin.agent.put(`/api/pengguna/${a.id}`).set('x-csrf-token', admin.token).send({ nama: a.nama, username: a.username, peran: 'anggota', aktif: true });
     expect(diriSendiri.status).toBe(400);
   });
 
   it('mereset kata sandi pengguna lain', async () => {
-    await createUser('admin@uji.id');
-    const b = await createUser('b@uji.id', 'anggota');
-    const admin = await loginAs('admin@uji.id');
-    await admin.agent.put(`/api/pengguna/${b.id}`).set('x-csrf-token', admin.token).send({ nama: b.nama, email: b.email, peran: 'anggota', aktif: true, kataSandi: 'reset-sandi-123' });
-    expect((await loginAs('b@uji.id', PASSWORD)).login.status).toBe(401);
-    expect((await loginAs('b@uji.id', 'reset-sandi-123')).login.status).toBe(200);
+    await createUser('admin');
+    const b = await createUser('budi', 'anggota');
+    const admin = await loginAs('admin');
+    const reset = await admin.agent.put(`/api/pengguna/${b.id}`).set('x-csrf-token', admin.token).send({ nama: b.nama, username: b.username, peran: 'anggota', aktif: true, kataSandi: 'reset-sandi-123' });
+    expect(reset.status).toBe(200);
+    expect((await loginAs('budi', PASSWORD)).login.status).toBe(401);
+    expect((await loginAs('budi', 'reset-sandi-123')).login.status).toBe(200);
   });
 });
 
 describe('master data', () => {
   it('menambah kategori, menolak duplikat, dan tidak menghapus kategori yang dipakai', async () => {
-    const admin = await createUser('admin@uji.id');
+    const admin = await createUser('admin');
     const m = await createMaster();
-    const sesi = await loginAs('admin@uji.id');
+    const sesi = await loginAs('admin');
     const baru = await sesi.agent.post('/api/master/kategori').set('x-csrf-token', sesi.token).send({ nama: 'Merchandise', jenis: 'masuk' });
     expect(baru.status).toBe(201);
     expect((await sesi.agent.post('/api/master/kategori').set('x-csrf-token', sesi.token).send({ nama: 'Merchandise', jenis: 'masuk' })).status).toBe(409);
@@ -74,8 +85,8 @@ describe('master data', () => {
 
 describe('peserta & vendor', () => {
   it('menambah, mengimpor, dan memperbarui kehadiran peserta', async () => {
-    const admin = await createUser('admin@uji.id');
-    const sesi = await loginAs('admin@uji.id');
+    const admin = await createUser('admin');
+    const sesi = await loginAs('admin');
     const ev = await createEvent(sesi, admin.id);
     const satu = await sesi.agent.post(`/api/event/${ev.id}/peserta`).set('x-csrf-token', sesi.token).send({ nama: 'Andi', email: 'ANDI@mail.id', tipe: 'anggota' });
     expect(satu.body.peserta).toMatchObject({ email: 'andi@mail.id', registrasi: 'menunggu', kehadiran: 'belum' });
@@ -91,8 +102,8 @@ describe('peserta & vendor', () => {
   });
 
   it('memvalidasi pembayaran vendor', async () => {
-    const admin = await createUser('admin@uji.id');
-    const sesi = await loginAs('admin@uji.id');
+    const admin = await createUser('admin');
+    const sesi = await loginAs('admin');
     const ev = await createEvent(sesi, admin.id);
     const lebih = await sesi.agent.post(`/api/event/${ev.id}/vendor`).set('x-csrf-token', sesi.token).send({ nama: 'Katering', kategori: 'Catering', nilaiKontrak: 1000, terbayar: 2000 });
     expect(lebih.status).toBe(400);

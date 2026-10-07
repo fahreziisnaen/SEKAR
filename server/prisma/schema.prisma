@@ -69,35 +69,59 @@ model Organisasi {
   notifPengingatTenggat   Boolean  @default(true)
   /// Peringatan bila pengeluaran event melewati 90% budget.
   notifPeringatanKeuangan Boolean  @default(true)
+  /// Semua pengguna wajib memakai MFA (aplikasi authenticator) untuk masuk.
+  wajibMfa                Boolean  @default(false)
   updatedAt               DateTime @updatedAt
 }
 
 model Pengguna {
-  id           Int      @id @default(autoincrement())
-  nama         String   @db.VarChar(120)
-  email        String   @unique @db.VarChar(160)
-  passwordHash String   @db.VarChar(255)
-  peran        Peran    @default(anggota)
-  aktif        Boolean  @default(true)
+  id                    Int       @id @default(autoincrement())
+  nama                  String    @db.VarChar(120)
+  /// Nama login (huruf kecil); unik.
+  username              String    @unique @db.VarChar(32)
+  /// Kontak opsional; tidak dipakai untuk masuk.
+  email                 String?   @unique @db.VarChar(160)
+  passwordHash          String    @db.VarChar(255)
+  peran                 Peran     @default(anggota)
+  aktif                 Boolean   @default(true)
   /// Jabatan di tim, mis. "Event Manager".
-  jabatan      String?  @db.VarChar(80)
-  telepon      String?  @db.VarChar(40)
+  jabatan               String?   @db.VarChar(80)
+  telepon               String?   @db.VarChar(40)
   /// Ringkasan tanggung jawab di tim.
-  tanggungJawab String? @db.VarChar(255)
+  tanggungJawab         String?   @db.VarChar(255)
   /// Gambar tanda tangan (folder upload privat), diunggah sendiri oleh pengguna.
-  tandaTanganPath        String?   @db.VarChar(255)
+  tandaTanganPath       String?   @db.VarChar(255)
   /// Waktu unggah tanda tangan terakhir; juga dipakai sebagai versi URL gambar.
-  tandaTanganDiperbarui  DateTime?
+  tandaTanganDiperbarui DateTime?
+  /// Rahasia TOTP aktif, terenkripsi AES-256-GCM (MFA_ENCRYPTION_KEY); null = MFA tidak aktif.
+  mfaRahasia            String?   @db.VarChar(255)
+  /// Rahasia yang sedang dipasang; menjadi aktif setelah kode pertama dikonfirmasi.
+  mfaRahasiaBaru        String?   @db.VarChar(255)
+  mfaAktifSejak         DateTime?
+  /// Langkah waktu TOTP terakhir yang dipakai; kode yang sama tidak bisa dipakai ulang.
+  mfaLangkahTerakhir    Int?
   /// Dinaikkan untuk mencabut semua sesi (logout, ganti kata sandi, dinonaktifkan).
-  tokenVersion Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  tokenVersion          Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  eventPic    Event[]        @relation("PicEvent")
-  keanggotaan AnggotaEvent[]
-  tugas       Tugas[]
-  transaksi   Transaksi[]
-  dokumen     Dokumen[]
+  eventPic      Event[]         @relation("PicEvent")
+  keanggotaan   AnggotaEvent[]
+  tugas         Tugas[]
+  transaksi     Transaksi[]
+  dokumen       Dokumen[]
+  kodePemulihan KodePemulihan[]
+}
+
+/// Kode cadangan MFA sekali pakai, disimpan sebagai HMAC-SHA256.
+model KodePemulihan {
+  id          Int       @id @default(autoincrement())
+  penggunaId  Int
+  pengguna    Pengguna  @relation(fields: [penggunaId], references: [id], onDelete: Cascade)
+  hash        String    @db.Char(64)
+  dipakaiPada DateTime?
+
+  @@index([penggunaId])
 }
 
 model Event {
@@ -192,29 +216,29 @@ model TemplateTugas {
 }
 
 model Transaksi {
-  id           Int            @id @default(autoincrement())
-  eventId      Int
-  tanggal      DateTime       @db.Date
-  keterangan   String         @db.VarChar(200)
-  jenis        JenisTransaksi
-  kategoriId   Int
-  nominal      BigInt
-  metodeId     Int
-  catatan      String?        @db.VarChar(500)
+  id              Int            @id @default(autoincrement())
+  eventId         Int
+  tanggal         DateTime       @db.Date
+  keterangan      String         @db.VarChar(200)
+  jenis           JenisTransaksi
+  kategoriId      Int
+  nominal         BigInt
+  metodeId        Int
+  catatan         String?        @db.VarChar(500)
   /// Pemberi dana (pemasukan, wajib) atau penerima pembayaran (pengeluaran, opsional).
-  pihak           String? @db.VarChar(160)
+  pihak           String?        @db.VarChar(160)
   /// Keterangan singkat pihak, mis. "Sponsor Event".
-  pihakKeterangan String? @db.VarChar(120)
-  bank            String? @db.VarChar(80)
-  nomorRekening   String? @db.VarChar(40)
-  nomorReferensi  String? @db.VarChar(80)
+  pihakKeterangan String?        @db.VarChar(120)
+  bank            String?        @db.VarChar(80)
+  nomorRekening   String?        @db.VarChar(40)
+  nomorReferensi  String?        @db.VarChar(80)
   /// Nomor Bukti Penerimaan Dana `BPD-YYYYMMDD-XXX`; hanya untuk pemasukan.
-  nomorBukti      String? @unique @db.VarChar(30)
+  nomorBukti      String?        @unique @db.VarChar(30)
   /// Path relatif di folder upload privat.
-  buktiPath    String?        @db.VarChar(255)
-  buktiNama    String?        @db.VarChar(200)
-  dibuatOlehId Int
-  createdAt    DateTime       @default(now())
+  buktiPath       String?        @db.VarChar(255)
+  buktiNama       String?        @db.VarChar(200)
+  dibuatOlehId    Int
+  createdAt       DateTime       @default(now())
 
   event      Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
   kategori   KategoriKeuangan @relation(fields: [kategoriId], references: [id])

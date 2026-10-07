@@ -3,7 +3,8 @@ import { Modal, TombolTutup } from '../../components/Modal';
 import { PesanGalat } from '../../components/Status';
 import { useToast } from '../../components/Toast';
 import { Button, Field, Input, Select, cx } from '../../components/ui';
-import { useMaster, useUnggahDokumen } from '../../hooks/queries';
+import { labelUnggah, ProgresUnggah } from '../../components/ProgresUnggah';
+import { useCekUkuranBerkas, useMaster, useUnggahDokumen } from '../../hooks/queries';
 import { errorMessage } from '../../lib/api';
 
 /** `Surat_Undangan.final.pdf` → [`Surat_Undangan.final`, `pdf`] */
@@ -23,6 +24,7 @@ export function UnggahModal({ eventId, onClose }: { eventId: number; onClose: ()
   const toast = useToast();
   const master = useMaster();
   const unggah = useUnggahDokumen();
+  const cekUkuran = useCekUkuranBerkas();
   const fileRef = useRef<HTMLInputElement>(null);
   const [nama, setNama] = useState('');
   const [jenisId, setJenisId] = useState(0);
@@ -41,6 +43,8 @@ export function UnggahModal({ eventId, onClose }: { eventId: number; onClose: ()
 
   const simpan = () => {
     if (!file) return setErr('Pilih berkas yang akan diunggah.');
+    const terlaluBesar = cekUkuran(file);
+    if (terlaluBesar) return setErr(terlaluBesar);
     if (!nama.trim()) return setErr('Isi nama dokumen terlebih dahulu.');
     if (!jenisTerpilih) return setErr('Jenis dokumen belum tersedia. Tambahkan di menu Pengaturan.');
     unggah.mutate(
@@ -107,13 +111,14 @@ export function UnggahModal({ eventId, onClose }: { eventId: number; onClose: ()
               ))}
             </Select>
           </Field>
+          <ProgresUnggah progres={unggah.progres} nama={file?.name} />
           <PesanGalat>{err}</PesanGalat>
           <div className="flex justify-end gap-2.5">
-            <Button variant="secondary" onClick={onClose} className="px-[18px] py-[11px] text-sm">
+            <Button variant="secondary" onClick={onClose} disabled={unggah.isPending} className="px-[18px] py-[11px] text-sm disabled:opacity-50">
               Batal
             </Button>
             <Button onClick={simpan} disabled={unggah.isPending} className="px-5 py-[11px] text-sm disabled:opacity-60">
-              {unggah.isPending ? 'Mengunggah…' : 'Unggah'}
+              {labelUnggah(unggah.progres, 'Unggah')}
             </Button>
           </div>
         </div>

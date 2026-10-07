@@ -53,14 +53,14 @@ export function KeuanganPage() {
       </div>
       <KartuKeuangan total={event} list={tx.data} />
       {tx.isPending ? (
-        <Memuat />
+        <Memuat varian="tabel" baris={6} className="rounded-[20px] border border-line bg-white" />
       ) : tx.isError ? (
         <GagalMemuat error={tx.error} onRetry={() => void tx.refetch()} />
       ) : tab === 'ringkasan' ? (
         r.list.length > 0 && detail.data ? (
           <RingkasanKeuangan event={detail.data} list={r.list} />
         ) : (
-          r.list.length > 0 && <Memuat />
+          r.list.length > 0 && <Memuat varian="kartu" baris={2} />
         )
       ) : (
         <DaftarTransaksi key={event.id} eventId={event.id} list={r.list} />
