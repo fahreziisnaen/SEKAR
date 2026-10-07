@@ -1,0 +1,64 @@
+# SEKAR — aplikasi + MySQL.
+#
+#   cp .env.example .env      # lalu isi semua nilai yang kosong
+#   docker compose up -d --build
+#
+# Aplikasi: http://<IP-server>:${APP_PORT} (default 8030). MySQL tidak dibuka ke host.
+#
+# Server deploy dipakai bersama stack lain; port host yang SUDAH TERPAKAI di sana:
+#   80, 443 (reverse proxy) · 8021 · 9001
+# Jangan set APP_PORT ke salah satu port di atas.
+
+name: sekar
+
+services:
+  db:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: sekar
+      MYSQL_USER: sekar
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Isi DB_PASSWORD di file .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Isi DB_ROOT_PASSWORD di file .env}
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - sekar-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  app:
+    build: .
+    image: sekar:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${APP_PORT:-8030}:4000"
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DATABASE_URL: mysql://sekar:${DB_PASSWORD}@db:3306/sekar
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Isi JWT_ACCESS_SECRET di file .env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Isi JWT_REFRESH_SECRET di file .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Jakarta}
+      SEED_ORG_NAME: ${SEED_ORG_NAME:?Isi SEED_ORG_NAME di file .env}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:?Isi SEED_ADMIN_NAME di file .env}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:?Isi SEED_ADMIN_EMAIL di file .env}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?Isi SEED_ADMIN_PASSWORD di file .env}
+    volumes:
+      - sekar-uploads:/app/server/uploads
+
+volumes:
+  sekar-db:
+  sekar-uploads:

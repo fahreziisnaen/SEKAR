@@ -1,0 +1,18 @@
+# Image hanya butuh package*.json, client/, server/, dan docker/start.sh.
+.git
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+server/uploads
+server/src/generated
+backups
+branding
+**/*.md
+**/*.log
+**/*.test.ts
+**/*.test.tsx
+.vscode
+.idea
+.claude
+.playwright-mcp

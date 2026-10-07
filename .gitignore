@@ -1,0 +1,40 @@
+# ── Dependensi & hasil build ─────────────────────────────────────────────
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
+# Prisma Client dibuat ulang oleh `prisma generate` (dijalankan otomatis oleh dev/build/test).
+server/src/generated/
+
+# ── Rahasia & konfigurasi lokal — JANGAN di-commit ───────────────────────
+# Hanya file contoh (.env.example) yang masuk repo.
+.env
+.env.*
+!.env.example
+*.local
+*.pem
+*.key
+*.p12
+
+# ── Data runtime ─────────────────────────────────────────────────────────
+# Unggahan pengguna (bukti transaksi, dokumen, tanda tangan, logo).
+server/uploads/
+# Cadangan database & unggahan (lihat README › Backup).
+backups/
+*.sql.gz
+*.tar.gz
+
+# ── Log ──────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Editor, OS, & alat bantu ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/settings.local.json
+.playwright-mcp/

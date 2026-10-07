@@ -1,0 +1,179 @@
+@import 'tailwindcss';
+
+/* Design tokens — sumber: "Sekar event management prototype/SEKAR.dc.html" */
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', ui-sans-serif, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Breakpoint prototipe: di bawah 860px tampilan mobile, mulai 1180px header lebar. */
+  --breakpoint-lap: 53.75rem;
+  --breakpoint-wide: 73.75rem;
+
+  --color-navy: #12264a;
+  --color-navy-hover: #1b3463;
+  --color-ink: #0f1e3a;
+  --color-ink-label: #33415c;
+  --color-ink-body: #55627a;
+  --color-ink-slate: #64748b;
+  --color-ink-muted: #7a869a;
+  --color-ink-subtle: #9aa6ba;
+
+  --color-on-navy: #c9d4e8;
+  --color-on-navy-soft: #b4c1d8;
+  --color-on-navy-dim: #9fb0cf;
+  --color-on-navy-muted: #8fa0bf;
+
+  --color-primary: #2f6fed;
+  --color-primary-hover: #1f5bd6;
+  --color-primary-bg: #e4edff;
+  --color-primary-soft: #bcd3ff;
+  --color-primary-sky: #4e8af5;
+
+  --color-accent: #f5b800;
+  --color-accent-hover: #ffc72a;
+  --color-accent-light: #ffcd45;
+  --color-accent-ink: #b88600;
+  --color-accent-deep: #8a6100;
+  --color-accent-bg: #fff4d1;
+  --color-accent-box: #e3c76a;
+  --color-cream: #fff9e8;
+  --color-cream-line: #f6e3a8;
+
+  --color-success: #1e9e63;
+  --color-success-ink: #157347;
+  --color-success-bg: #e1f4ea;
+  --color-success-pale: #f1faf5;
+  --color-success-track: #eef6f1;
+  --color-success-line: #cde9da;
+  --color-success-dash: #9ccfb3;
+
+  --color-danger: #d93a35;
+  --color-danger-ink: #be3530;
+  --color-danger-bg: #fde7e7;
+  --color-danger-bar: #e5574f;
+  --color-danger-track: #fbf0f0;
+  --color-danger-pale: #fdf3f3;
+  --color-danger-dash: #e7a9a6;
+
+  --color-violet: #7a5af8;
+
+  --color-canvas: #f3f5f9;
+  --color-line: #e7ebf3;
+  --color-line-soft: #eef1f6;
+  --color-line-input: #dce2ec;
+  --color-line-ctl: #e3e8f0;
+  --color-line-dash: #c9d2e0;
+  --color-line-strong: #c2cad8;
+  --color-track: #d5dce7;
+  --color-grid: #f1f4f9;
+  --color-surface-muted: #f8fafc;
+  --color-surface-soft: #f6f8fc;
+  --color-surface-select: #f3f6fc;
+  --color-surface-hover: #f8fafd;
+  --color-segment: #e9edf4;
+
+  --shadow-card: 0 1px 2px rgba(18, 38, 74, 0.04), 0 12px 32px -18px rgba(18, 38, 74, 0.18);
+  --shadow-primary: 0 8px 20px -10px rgba(47, 111, 237, 0.9);
+  --shadow-pop: 0 24px 60px -20px rgba(18, 38, 74, 0.35);
+  --shadow-modal: 0 40px 80px -30px rgba(15, 30, 58, 0.5);
+  --shadow-segment: 0 1px 3px rgba(18, 38, 74, 0.12);
+
+  /* Prototipe memakai line-height `normal`; ukuran teks bawaan Tailwind jangan menimpanya. */
+  --text-xs--line-height: normal;
+  --text-sm--line-height: normal;
+  --text-base--line-height: normal;
+  --text-lg--line-height: normal;
+  --text-xl--line-height: normal;
+  --text-2xl--line-height: normal;
+  --text-4xl--line-height: normal;
+
+  --animate-fade-up: fade-up 0.35s ease;
+  --animate-fade-up-fast: fade-up 0.22s ease;
+  --animate-fade-up-quick: fade-up 0.18s ease;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  html {
+    line-height: normal;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+  }
+
+  a:hover {
+    color: #1f55c4;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  /* Prototipe mematikan outline bawaan; fokus keyboard tetap perlu terlihat. */
+  :where(button, a, [role='button'], [tabindex]):focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+  }
+}
+
+/* Cetak Bukti Penerimaan Dana: hanya halaman bukti, A4 landscape tanpa margin. */
+.sekar-cetak-bukti {
+  display: none;
+}
+
+@page bukti {
+  size: A4 landscape;
+  margin: 0;
+}
+
+@media print {
+  body.cetak-bukti > *:not(.sekar-cetak-bukti) {
+    display: none !important;
+  }
+
+  body.cetak-bukti .sekar-cetak-bukti {
+    display: block;
+    page: bukti;
+    width: 297mm;
+    height: 210mm;
+    overflow: hidden;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}

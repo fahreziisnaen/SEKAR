@@ -1,0 +1,7 @@
+# Normalisasi akhir baris; skrip shell wajib LF agar bisa dijalankan di container Linux.
+* text=auto
+*.sh text eol=lf
+*.png binary
+*.ico binary
+*.woff binary
+*.woff2 binary

@@ -1,0 +1,315 @@
+// Skema database SEKAR. Koneksi diatur di prisma.config.ts (DATABASE_URL).
+// Nominal rupiah disimpan sebagai BIGINT (rupiah utuh, tanpa desimal).
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Peran {
+  admin
+  bendahara
+  anggota
+  peninjau
+}
+
+enum StatusEvent {
+  draft
+  akan_datang
+  berlangsung
+  selesai
+  dibatalkan
+}
+
+enum JenisTransaksi {
+  masuk
+  keluar
+}
+
+enum StatusDokumen {
+  draft
+  menunggu
+  disetujui
+  final
+}
+
+enum TipePeserta {
+  anggota
+  mitra
+  umum
+}
+
+enum StatusRegistrasi {
+  menunggu
+  terverifikasi
+}
+
+enum Kehadiran {
+  belum
+  hadir
+  tidak_hadir
+}
+
+/// Profil organisasi pemilik aplikasi. Selalu satu baris (id = 1).
+model Organisasi {
+  id                      Int      @id @default(1)
+  nama                    String   @db.VarChar(120)
+  email                   String?  @db.VarChar(160)
+  telepon                 String?  @db.VarChar(40)
+  kota                    String?  @db.VarChar(120)
+  /// URL publik logo di bawah /uploads/publik.
+  logoUrl                 String?  @db.VarChar(255)
+  /// Pengingat tenggat kebutuhan event di panel notifikasi.
+  notifPengingatTenggat   Boolean  @default(true)
+  /// Peringatan bila pengeluaran event melewati 90% budget.
+  notifPeringatanKeuangan Boolean  @default(true)
+  updatedAt               DateTime @updatedAt
+}
+
+model Pengguna {
+  id           Int      @id @default(autoincrement())
+  nama         String   @db.VarChar(120)
+  email        String   @unique @db.VarChar(160)
+  passwordHash String   @db.VarChar(255)
+  peran        Peran    @default(anggota)
+  aktif        Boolean  @default(true)
+  /// Jabatan di tim, mis. "Event Manager".
+  jabatan      String?  @db.VarChar(80)
+  telepon      String?  @db.VarChar(40)
+  /// Ringkasan tanggung jawab di tim.
+  tanggungJawab String? @db.VarChar(255)
+  /// Gambar tanda tangan (folder upload privat), diunggah sendiri oleh pengguna.
+  tandaTanganPath        String?   @db.VarChar(255)
+  /// Waktu unggah tanda tangan terakhir; juga dipakai sebagai versi URL gambar.
+  tandaTanganDiperbarui  DateTime?
+  /// Dinaikkan untuk mencabut semua sesi (logout, ganti kata sandi, dinonaktifkan).
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  eventPic    Event[]        @relation("PicEvent")
+  keanggotaan AnggotaEvent[]
+  tugas       Tugas[]
+  transaksi   Transaksi[]
+  dokumen     Dokumen[]
+}
+
+model Event {
+  id                  Int         @id @default(autoincrement())
+  nama                String      @db.VarChar(160)
+  tanggal             DateTime    @db.Date
+  /// Teks bebas, mis. "08.00 – 17.00 WIB".
+  waktu               String?     @db.VarChar(60)
+  lokasi              String      @db.VarChar(120)
+  venue               String?     @db.VarChar(200)
+  deskripsi           String?     @db.Text
+  status              StatusEvent @default(akan_datang)
+  /// Indeks tahap: 0 Perencanaan … 4 Selesai.
+  tahap               Int         @default(0)
+  budget              BigInt      @default(0)
+  targetPemasukan     BigInt      @default(0)
+  estimasiPengeluaran BigInt      @default(0)
+  picId               Int
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  pic       Pengguna       @relation("PicEvent", fields: [picId], references: [id])
+  anggota   AnggotaEvent[]
+  transaksi Transaksi[]
+  anggaran  Anggaran[]
+  tugas     Tugas[]
+  dokumen   Dokumen[]
+  peserta   Peserta[]
+  vendor    Vendor[]
+
+  @@index([tanggal])
+  @@index([picId])
+}
+
+model AnggotaEvent {
+  eventId    Int
+  penggunaId Int
+
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  pengguna Pengguna @relation(fields: [penggunaId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, penggunaId])
+  @@index([penggunaId])
+}
+
+model KategoriKeuangan {
+  id     Int            @id @default(autoincrement())
+  nama   String         @db.VarChar(60)
+  jenis  JenisTransaksi
+  urutan Int            @default(0)
+
+  transaksi Transaksi[]
+  anggaran  Anggaran[]
+
+  @@unique([jenis, nama])
+}
+
+model MetodePembayaran {
+  id     Int    @id @default(autoincrement())
+  nama   String @unique @db.VarChar(60)
+  urutan Int    @default(0)
+
+  transaksi Transaksi[]
+}
+
+model JenisDokumen {
+  id     Int    @id @default(autoincrement())
+  nama   String @unique @db.VarChar(60)
+  urutan Int    @default(0)
+
+  dokumen Dokumen[]
+}
+
+/// Template kebutuhan event yang dapat dipilih saat membuat event.
+model TemplateEvent {
+  id        Int             @id @default(autoincrement())
+  nama      String          @unique @db.VarChar(80)
+  deskripsi String?         @db.VarChar(255)
+  createdAt DateTime        @default(now())
+  tugas     TemplateTugas[]
+}
+
+model TemplateTugas {
+  id         Int    @id @default(autoincrement())
+  templateId Int
+  label      String @db.VarChar(160)
+  urutan     Int    @default(0)
+
+  template TemplateEvent @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model Transaksi {
+  id           Int            @id @default(autoincrement())
+  eventId      Int
+  tanggal      DateTime       @db.Date
+  keterangan   String         @db.VarChar(200)
+  jenis        JenisTransaksi
+  kategoriId   Int
+  nominal      BigInt
+  metodeId     Int
+  catatan      String?        @db.VarChar(500)
+  /// Pemberi dana (pemasukan, wajib) atau penerima pembayaran (pengeluaran, opsional).
+  pihak           String? @db.VarChar(160)
+  /// Keterangan singkat pihak, mis. "Sponsor Event".
+  pihakKeterangan String? @db.VarChar(120)
+  bank            String? @db.VarChar(80)
+  nomorRekening   String? @db.VarChar(40)
+  nomorReferensi  String? @db.VarChar(80)
+  /// Nomor Bukti Penerimaan Dana `BPD-YYYYMMDD-XXX`; hanya untuk pemasukan.
+  nomorBukti      String? @unique @db.VarChar(30)
+  /// Path relatif di folder upload privat.
+  buktiPath    String?        @db.VarChar(255)
+  buktiNama    String?        @db.VarChar(200)
+  dibuatOlehId Int
+  createdAt    DateTime       @default(now())
+
+  event      Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  kategori   KategoriKeuangan @relation(fields: [kategoriId], references: [id])
+  metode     MetodePembayaran @relation(fields: [metodeId], references: [id])
+  dibuatOleh Pengguna         @relation(fields: [dibuatOlehId], references: [id])
+
+  @@index([eventId, tanggal])
+  @@index([kategoriId])
+  @@index([metodeId])
+  @@index([dibuatOlehId])
+}
+
+/// Budget pengeluaran event per kategori.
+model Anggaran {
+  eventId    Int
+  kategoriId Int
+  nominal    BigInt
+
+  event    Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  kategori KategoriKeuangan @relation(fields: [kategoriId], references: [id])
+
+  @@id([eventId, kategoriId])
+  @@index([kategoriId])
+}
+
+/// Kebutuhan / tugas persiapan event.
+model Tugas {
+  id        Int       @id @default(autoincrement())
+  eventId   Int
+  label     String    @db.VarChar(160)
+  picId     Int?
+  tenggat   DateTime? @db.Date
+  selesai   Boolean   @default(false)
+  urutan    Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  event Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  pic   Pengguna? @relation(fields: [picId], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@index([picId])
+}
+
+model Dokumen {
+  id             Int           @id @default(autoincrement())
+  eventId        Int
+  nama           String        @db.VarChar(160)
+  jenisId        Int
+  status         StatusDokumen @default(draft)
+  /// Path relatif di folder upload privat.
+  filePath       String        @db.VarChar(255)
+  fileNama       String        @db.VarChar(200)
+  mime           String        @db.VarChar(120)
+  ukuran         Int
+  diunggahOlehId Int
+  createdAt      DateTime      @default(now())
+
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  jenis        JenisDokumen @relation(fields: [jenisId], references: [id])
+  diunggahOleh Pengguna     @relation(fields: [diunggahOlehId], references: [id])
+
+  @@index([eventId])
+  @@index([jenisId])
+  @@index([diunggahOlehId])
+}
+
+model Peserta {
+  id         Int              @id @default(autoincrement())
+  eventId    Int
+  nama       String           @db.VarChar(120)
+  email      String?          @db.VarChar(160)
+  telepon    String?          @db.VarChar(40)
+  tipe       TipePeserta      @default(umum)
+  registrasi StatusRegistrasi @default(menunggu)
+  kehadiran  Kehadiran        @default(belum)
+  createdAt  DateTime         @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model Vendor {
+  id           Int      @id @default(autoincrement())
+  eventId      Int
+  nama         String   @db.VarChar(160)
+  kategori     String   @db.VarChar(60)
+  picNama      String?  @db.VarChar(120)
+  kontak       String?  @db.VarChar(60)
+  nilaiKontrak BigInt
+  terbayar     BigInt   @default(0)
+  catatan      String?  @db.VarChar(255)
+  createdAt    DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
