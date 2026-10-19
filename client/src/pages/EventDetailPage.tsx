@@ -109,7 +109,7 @@ function DetailEvent({ event: e, tab }: { event: EventDetail; tab: Tab }) {
               </div>
             </div>
           </div>
-          <nav aria-label="Bagian event" className="relative mt-[22px] flex flex-wrap gap-1">
+          <nav aria-label="Bagian event" className="relative mt-[22px] flex flex-nowrap gap-1 overflow-x-auto scrollbar-none pb-0.5">
             {TAB.map(([k, l]) => {
               const on = k === tab;
               return (
@@ -118,7 +118,7 @@ function DetailEvent({ event: e, tab }: { event: EventDetail; tab: Tab }) {
                   to={k === 'overview' ? `/event/${e.id}` : `/event/${e.id}/${k}`}
                   aria-current={on ? 'page' : undefined}
                   className={cx(
-                    'border-b-[3px] px-4 py-3 text-sm whitespace-nowrap hover:text-navy',
+                    'border-b-[3px] px-4 py-3 text-sm whitespace-nowrap transition-colors duration-150 hover:text-navy',
                     on ? 'border-accent font-bold text-navy' : 'border-transparent font-medium text-ink-muted',
                   )}
                 >

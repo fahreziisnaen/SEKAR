@@ -19,7 +19,7 @@ const VARIAN: Record<Varian, string> = {
 };
 
 export function Button({ variant = 'primary', className, type = 'button', ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Varian }) {
-  return <button type={type} className={cx('cursor-pointer whitespace-nowrap', VARIAN[variant], className)} {...rest} />;
+  return <button type={type} className={cx('cursor-pointer whitespace-nowrap transition-all duration-150 active:scale-[0.98]', VARIAN[variant], className)} {...rest} />;
 }
 
 /* ---------- Permukaan ---------- */
@@ -102,7 +102,7 @@ export function Inisial({ nama, warna, className, style, abaikan }: { nama: stri
 
 export function SegmentedTabs<K extends string>({ items, value, onChange, className, label }: { items: [K, string][]; value: K; onChange: (k: K) => void; className?: string; label: string }) {
   return (
-    <div role="tablist" aria-label={label} className={cx('flex gap-1 rounded-xl bg-segment p-1', className)}>
+    <div role="tablist" aria-label={label} className={cx('flex max-w-full gap-1 overflow-x-auto scrollbar-none rounded-xl bg-segment p-1', className)}>
       {items.map(([k, l]) => {
         const aktif = k === value;
         return (
@@ -112,7 +112,7 @@ export function SegmentedTabs<K extends string>({ items, value, onChange, classN
             role="tab"
             aria-selected={aktif}
             onClick={() => onChange(k)}
-            className={cx('cursor-pointer rounded-[9px] border-none px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap', aktif ? 'bg-white text-navy shadow-segment' : 'bg-transparent text-ink-slate')}
+            className={cx('cursor-pointer rounded-[9px] border-none px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap transition-all duration-150', aktif ? 'bg-white text-navy shadow-segment' : 'bg-transparent text-ink-slate hover:text-navy')}
           >
             {l}
           </button>
@@ -184,17 +184,3 @@ export function Tabel({ min, cols, kepala, children, className }: { min: number;
 }
 
 export const kelasBaris = 'grid items-center gap-3 border-t border-line-soft px-5 text-[13px] text-ink-label';
-
-/* ---------- Placeholder ilustrasi ---------- */
-
-export function Ilustrasi({ label, className }: { label: string; className?: string }) {
-  return (
-    <div
-      aria-hidden="true"
-      className={cx('flex items-center justify-center font-mono text-[11px] text-ink-muted', className)}
-      style={{ background: 'repeating-linear-gradient(135deg,#EEF2F8 0 9px,#F7F9FC 9px 18px)' }}
-    >
-      {label}
-    </div>
-  );
-}

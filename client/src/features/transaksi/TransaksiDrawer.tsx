@@ -4,13 +4,36 @@ import { Icon } from '../../components/icons';
 import { useOverlays } from '../../components/Overlays';
 import { Konfirmasi } from '../../components/Status';
 import { useToast } from '../../components/Toast';
-import { Button, Ilustrasi } from '../../components/ui';
+import { IlustrasiBukti } from '../../components/IlustrasiKosong';
+import { Button } from '../../components/ui';
 import { useEvents, useHapusTransaksi, useIzin } from '../../hooks/queries';
 import { downloadFile, errorMessage } from '../../lib/api';
 import { formatTanggalPanjang, rupiah } from '../../lib/format';
+import { warnaEkstensi } from '../../lib/warna';
 import type { Transaksi } from '../../types';
 
 const formatWaktu = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+/** Bukti berupa dokumen (mis. PDF) yang tidak bisa dipratinjau sebagai gambar. */
+function BerkasBukti({ nama, onUnduh }: { nama: string; onUnduh: () => void }) {
+  const ext = (nama.split('.').pop() ?? 'pdf').toLowerCase();
+  const [bg, fg] = warnaEkstensi(ext);
+  return (
+    <div className="flex items-center gap-3.5 rounded-2xl border border-line bg-surface-muted p-4">
+      <span className="flex h-[52px] w-[44px] flex-none items-end justify-center rounded-[10px] pb-2 font-mono text-[11px] font-bold" style={{ background: bg, color: fg }}>
+        {ext.toUpperCase()}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate text-[13px] font-semibold text-navy">{nama}</span>
+        <span className="text-xs text-ink-muted">Pratinjau tidak tersedia untuk jenis berkas ini.</span>
+      </span>
+      <Button variant="secondary" onClick={onUnduh} className="flex items-center gap-1.5 px-3 py-2 text-xs">
+        <Icon name="download" size={14} />
+        Unduh
+      </Button>
+    </div>
+  );
+}
 
 export function TransaksiDrawer({ tx, onClose }: { tx: Transaksi; onClose: () => void }) {
   const events = useEvents();
@@ -78,9 +101,21 @@ export function TransaksiDrawer({ tx, onClose }: { tx: Transaksi; onClose: () =>
           )}
         </div>
         {tx.bukti?.gambar ? (
-          <img src={`/api/transaksi/${tx.id}/bukti?inline=1`} alt={`Bukti ${tx.keterangan}`} className="max-h-[320px] w-full rounded-2xl border border-line object-contain" />
+          <img
+            src={`/api/transaksi/${tx.id}/bukti?inline=1`}
+            alt={`Bukti ${tx.keterangan}`}
+            loading="lazy"
+            decoding="async"
+            className="max-h-[320px] w-full rounded-2xl border border-line object-contain"
+          />
+        ) : tx.bukti ? (
+          <BerkasBukti nama={tx.bukti.nama} onUnduh={unduh} />
         ) : (
-          <Ilustrasi label={tx.bukti?.nama ?? 'Belum ada bukti'} className="h-[170px] rounded-2xl" />
+          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-line-dash bg-surface-muted px-5 py-6 text-center">
+            <IlustrasiBukti className="w-[150px]" />
+            <span className="text-[13px] font-bold text-navy">Belum ada bukti transaksi</span>
+            <span className="max-w-[280px] text-xs leading-normal text-ink-muted">Transaksi ini dicatat tanpa foto nota atau bukti transfer.</span>
+          </div>
         )}
         {boleh('tulisKeuangan') && (
           <Button variant="secondary" onClick={() => setKonfirmasi(true)} className="mt-3 self-start border-danger-dash px-4 py-2.5 text-[13px] text-danger-ink hover:border-danger">

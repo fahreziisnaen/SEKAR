@@ -115,20 +115,36 @@ export function EventListPage() {
               {rows.map((e) => {
                 const v = nilai(e);
                 return (
-                  <Link key={e.id} to={`/event/${e.id}`} className="flex flex-col gap-2.5 border-t border-line-soft px-[18px] py-4">
-                    <div className="flex justify-between gap-2.5">
-                      <span className="font-bold text-navy">{e.nama}</span>
-                      <Badge status={LABEL_STATUS_EVENT[e.status]} size="sm" className="h-fit" />
+                  <Link key={e.id} to={`/event/${e.id}`} className="flex flex-col gap-2.5 border-t border-line-soft px-4 py-3.5 transition-all duration-150 hover:bg-surface-soft active:bg-surface-select">
+                    <div className="flex items-start justify-between gap-2.5">
+                      <div className="flex min-w-0 items-center gap-2.5">
+                        <InisialEvent nama={e.nama} warna={warna(e.id)} className="size-8 flex-none rounded-lg font-display text-xs" />
+                        <span className="truncate text-sm font-bold text-navy">{e.nama}</span>
+                      </div>
+                      <Badge status={LABEL_STATUS_EVENT[e.status]} size="sm" className="h-fit flex-none" />
                     </div>
                     <div className="text-xs text-ink-muted">
                       {formatTanggal(e.tanggal)} · {e.lokasi} · PIC {e.pic.nama}
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <span className="font-semibold text-success-ink">{v.inF}</span>
-                      <span className="font-semibold text-danger-ink">{v.outF}</span>
-                      <span className="text-right font-bold" style={{ color: v.pColor }}>
-                        {v.pF}
-                      </span>
+                    <div className="flex items-center gap-2">
+                      <Progress value={e.progress} className="h-1.5 flex-1" label={`Progres ${e.nama}`} />
+                      <span className="text-[11px] font-medium text-ink-subtle">{e.progress}%</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 rounded-xl bg-surface-muted px-3 py-2 text-xs">
+                      <div>
+                        <span className="block text-[10px] text-ink-muted">Pemasukan</span>
+                        <span className="truncate font-semibold text-success-ink">{v.inF}</span>
+                      </div>
+                      <div>
+                        <span className="block text-[10px] text-ink-muted">Pengeluaran</span>
+                        <span className="truncate font-semibold text-danger-ink">{v.outF}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[10px] text-ink-muted">Untung/Rugi</span>
+                        <span className="truncate font-bold" style={{ color: v.pColor }}>
+                          {v.pF}
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 );

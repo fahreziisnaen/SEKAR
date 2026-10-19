@@ -80,23 +80,23 @@ export function LoginPage() {
 
   return (
     <div className="grid min-h-screen grid-cols-[repeat(auto-fit,minmax(min(100%,420px),1fr))] bg-canvas">
-      <div className="relative flex min-h-[560px] flex-col gap-9 overflow-hidden bg-navy px-6 py-12 text-white sm:px-14">
+      <div className="relative flex flex-col gap-6 sm:gap-9 overflow-hidden bg-navy px-6 py-8 sm:py-12 text-white sm:px-14 sm:min-h-[560px]">
         <div className="absolute -top-[120px] -right-[120px] size-[360px] rounded-full bg-accent opacity-95" />
         <div className="absolute -top-10 -right-10 size-[200px] rounded-full bg-navy" />
         <div className="absolute -bottom-[110px] -left-[90px] size-[280px] rounded-full border-[44px] border-primary opacity-50" />
         <div className="relative flex items-center gap-3">
-          <LogoSekar ubin className="size-[52px] rounded-2xl p-1.5" />
-          <div className="font-display text-[30px] font-extrabold tracking-[.04em]">SEKAR</div>
+          <LogoSekar ubin className="size-10 sm:size-[52px] rounded-2xl p-1 sm:p-1.5" />
+          <div className="font-display text-2xl sm:text-[30px] font-extrabold tracking-[.04em]">SEKAR</div>
         </div>
-        <div className="relative flex max-w-[460px] flex-col gap-4">
-          <div className="font-display text-[44px] leading-[1.05] font-bold tracking-[-.02em] text-balance">
+        <div className="relative flex max-w-[460px] flex-col gap-3 sm:gap-4">
+          <div className="font-display text-2xl sm:text-[44px] leading-[1.08] sm:leading-[1.05] font-bold tracking-[-.02em] text-balance">
             Kelola Event, Catat Keuangan, <span className="text-accent">Tertata.</span>
           </div>
-          <div className="text-base leading-[1.6] text-pretty text-on-navy">
+          <div className="text-sm sm:text-base leading-[1.6] text-pretty text-on-navy">
             Sistem Event, Keuangan, dan Administrasi Terintegrasi. Dari rencana hingga laporan, semua dalam satu sistem.
           </div>
         </div>
-        <div className="relative flex flex-1 items-center justify-center">
+        <div className="relative flex flex-1 items-center justify-center max-sm:hidden">
           {/* Master: branding/SEKAR_Front.png. Versi web dibuat ulang bila master diganti. */}
           <img
             src="/ilustrasi/login-1400.webp"
@@ -110,7 +110,7 @@ export function LoginPage() {
             className="h-auto w-full max-w-[680px] animate-fade-up drop-shadow-[0_24px_40px_rgba(0,0,0,.28)]"
           />
         </div>
-        <div className="relative flex flex-wrap gap-5 text-[13px] text-on-navy">
+        <div className="relative flex flex-wrap gap-4 sm:gap-5 text-xs sm:text-[13px] text-on-navy">
           {[
             ['#F5B800', 'Kelola event'],
             ['#1E9E63', 'Catat keuangan'],

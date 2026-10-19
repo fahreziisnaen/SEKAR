@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Icon } from '../../components/icons';
 import { useOverlays } from '../../components/Overlays';
-import { Badge, Button, Card, Ilustrasi, Tabel, cx, kelasBaris } from '../../components/ui';
+import { IlustrasiDompet } from '../../components/IlustrasiKosong';
+import { Badge, Button, Card, Tabel, cx, kelasBaris } from '../../components/ui';
 import { useIzin } from '../../hooks/queries';
 import { formatTanggal, rupiah } from '../../lib/format';
 import type { Transaksi } from '../../types';
@@ -110,7 +111,7 @@ export function DaftarTransaksi({ eventId, list }: { eventId: number; list: Tran
         </>
       ) : (
         <div className="flex flex-col items-center gap-3.5 px-6 py-[52px] text-center">
-          <Ilustrasi label="ilustrasi: dompet" className="h-[100px] w-40 rounded-[18px]" />
+          <IlustrasiDompet />
           <div className="font-display text-[22px] font-bold text-navy">Belum ada transaksi</div>
           <div className="max-w-[420px] text-sm leading-[1.6] text-ink-slate">
             Catat pemasukan atau pengeluaran event untuk mulai melihat kondisi keuangan.

@@ -79,6 +79,36 @@ describe('sesi', () => {
     expect(await screen.findByRole('heading', { name: 'Selamat Datang di SEKAR' })).toBeInTheDocument();
   });
 
+  it('menu profil mobile bisa dibuka dan memiliki tombol Keluar untuk logout di mobile view', async () => {
+    let user: SessionUser | null = USER_ADMIN;
+    pasangApiPalsu({
+      ...ruteDasar(null, [buatEvent()]),
+      'GET /auth/me': () => ({ json: { user } }),
+      'POST /auth/logout': () => {
+        user = null;
+        return { status: 204 };
+      },
+    });
+    const u = userEvent.setup();
+    renderApp('/');
+
+    const tombolMenuMobile = await screen.findByRole('button', { name: `Menu profil ${USER_ADMIN.nama}` });
+    expect(tombolMenuMobile).toBeInTheDocument();
+
+    await u.click(tombolMenuMobile);
+
+    const dialog = await screen.findByRole('dialog', { name: 'Profil Pengguna' });
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText('AKUN SEKAR')).toBeInTheDocument();
+
+    const tombolKeluarMobile = within(dialog).getByRole('button', { name: 'Keluar' });
+    expect(tombolKeluarMobile).toBeInTheDocument();
+
+    await u.click(tombolKeluarMobile);
+
+    expect(await screen.findByRole('heading', { name: 'Masuk ke SEKAR' })).toBeInTheDocument();
+  });
+
   it('menampilkan pesan dari server saat login gagal', async () => {
     pasangApiPalsu({
       ...ruteDasar(null, []),
@@ -130,7 +160,8 @@ describe('sesi', () => {
     expect(await within(dialog).findByRole('heading', { name: 'Verifikasi berhasil' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Selamat Datang di SEKAR' }, { timeout: 4000 })).toBeInTheDocument();
     expect(panggilan.filter((p) => p.path === '/auth/login/mfa')).toHaveLength(2);
-  });
+    // Skenario memuat animasi gagal & sukses sungguhan (±3 detik), jadi batas waktunya dilonggarkan.
+  }, 15_000);
 
   it('MFA wajib: pengguna lama harus memasang Google Authenticator sebelum memakai aplikasi', async () => {
     let user: SessionUser = { ...USER_ADMIN, mfa: { aktif: false, wajib: true } };

@@ -6,7 +6,8 @@ import { labelUnggah, ProgresUnggah } from '../components/ProgresUnggah';
 import { Tip } from '../components/Tip';
 import { GagalMemuat, Konfirmasi, Memuat, PesanGalat } from '../components/Status';
 import { useToast } from '../components/Toast';
-import { Badge, Button, Field, Ilustrasi, Inisial, Input, Select, TextArea, cx } from '../components/ui';
+import { IlustrasiLogo } from '../components/IlustrasiKosong';
+import { Badge, Button, Field, Inisial, Input, Select, TextArea, cx } from '../components/ui';
 import {
   useGantiSandi,
   useHapusLogo,
@@ -17,6 +18,7 @@ import {
   useMe,
   useOrganisasi,
   usePengguna,
+  useLogout,
   useSimpanOrganisasi,
   useSimpanPengguna,
   useSimpanTemplate,
@@ -101,7 +103,10 @@ function TabProfil() {
         {org?.logoUrl ? (
           <img src={org.logoUrl} alt={`Logo ${org.nama}`} className="size-[84px] rounded-[22px] border border-line object-contain" />
         ) : (
-          <Ilustrasi label="logo" className="size-[84px] rounded-[22px] border border-dashed border-line-dash text-[10px]" />
+          <div className="flex size-[84px] flex-none flex-col items-center justify-center gap-0.5 rounded-[22px] border border-dashed border-line-dash bg-surface-muted">
+            <IlustrasiLogo />
+            <span className="text-[10px] font-semibold text-ink-muted">Belum ada logo</span>
+          </div>
         )}
         <div className="flex flex-col gap-1.5">
           <input
@@ -648,6 +653,7 @@ function TabKeamanan() {
 function TabAkun() {
   const me = useMe().data;
   const ganti = useGantiSandi();
+  const keluar = useLogout();
   const toast = useToast();
   const [f, setF] = useState({ lama: '', baru: '', ulang: '' });
   const [err, setErr] = useState('');
@@ -711,6 +717,23 @@ function TabAkun() {
           Ganti Kata Sandi
         </Button>
       </form>
+      <div className="flex flex-col gap-3 border-t border-line-soft pt-5">
+        <div className="text-[13px] font-bold text-navy">Sesi Akun</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line-soft bg-surface-soft p-4">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-sm font-semibold text-navy">Keluar dari Akun</span>
+            <span className="text-xs text-ink-muted">Akhiri sesi ini pada perangkat yang sedang digunakan.</span>
+          </div>
+          <Button
+            variant="secondary"
+            onClick={() => keluar.mutate()}
+            className="flex items-center gap-2 border-danger-dash px-4 py-2 text-[13px] font-bold text-danger hover:border-danger hover:bg-danger-bg"
+          >
+            <Icon name="logout" size={16} />
+            Keluar
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

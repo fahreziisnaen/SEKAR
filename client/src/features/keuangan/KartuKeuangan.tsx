@@ -54,17 +54,17 @@ export function IkonKotak({ k, size, radius, iconSize }: { k: Pick<KartuNilai, '
 
 export function KartuKeuangan({ total, list }: { total: Total; list?: Transaksi[] }) {
   return (
-    <div className="grid animate-fade-up grid-cols-[repeat(auto-fit,minmax(210px,1fr))] gap-4">
+    <div className="grid animate-fade-up grid-cols-2 lap:grid-cols-4 gap-3 sm:gap-4">
       {kartuKeuangan(total, list).map((k) => (
-        <Card key={k.label} className="flex flex-col gap-3.5 p-[22px]">
+        <Card key={k.label} className="group/card flex flex-col gap-2.5 sm:gap-3.5 p-3.5 sm:p-[22px] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] font-semibold text-ink-slate">{k.label}</span>
-            <IkonKotak k={k} size={34} radius={11} iconSize={17} />
+            <span className="truncate text-xs sm:text-[13px] font-semibold text-ink-slate">{k.label}</span>
+            <IkonKotak k={k} size={32} radius={10} iconSize={16} />
           </div>
-          <span className="font-display text-[26px] font-bold tracking-[-.01em] whitespace-nowrap" style={{ color: k.vc }}>
+          <span className="font-display text-base sm:text-[24px] font-bold tracking-[-.01em] truncate" style={{ color: k.vc }}>
             {k.value}
           </span>
-          <span className="min-h-[15px] text-xs text-ink-subtle">{k.note}</span>
+          <span className="min-h-[14px] truncate text-[11px] sm:text-xs text-ink-subtle">{k.note}</span>
         </Card>
       ))}
     </div>

@@ -10,19 +10,22 @@ import type { EventRingkas } from '../types';
 
 export function ItemEvent({ e, warna }: { e: EventRingkas; warna: readonly [string, string] }) {
   return (
-    <Link to={`/event/${e.id}`} className="-mx-3 flex items-center gap-3.5 rounded-[14px] p-3 text-left hover:bg-surface-soft">
-      <InisialEvent nama={e.nama} warna={warna} className="size-11 rounded-[14px] font-display text-[15px]" />
-      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <span className="text-sm font-semibold text-navy">{e.nama}</span>
-        <span className="flex items-center gap-2.5">
-          <span className="text-xs whitespace-nowrap text-ink-muted">
+    <Link to={`/event/${e.id}`} className="-mx-2 sm:-mx-3 flex items-center gap-3 rounded-2xl p-2.5 sm:p-3 text-left transition-all duration-150 hover:bg-surface-soft active:bg-surface-select">
+      <InisialEvent nama={e.nama} warna={warna} className="size-10 sm:size-11 rounded-[14px] font-display text-sm sm:text-[15px] shadow-xs" />
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-sm font-semibold text-navy">{e.nama}</span>
+          <Badge status={LABEL_STATUS_EVENT[e.status]} size="sm" className="sm:hidden" />
+        </div>
+        <span className="flex items-center gap-2">
+          <span className="truncate text-xs text-ink-muted">
             {formatTanggal(e.tanggal)} · {e.lokasi}
           </span>
-          <Progress value={e.progress} className="h-[5px] max-w-[120px] flex-1" label={`Progres ${e.nama}`} />
-          <span className="text-[11px] text-ink-muted">{e.progress}%</span>
+          <Progress value={e.progress} className="hidden sm:block h-[5px] max-w-[100px] flex-1" label={`Progres ${e.nama}`} />
+          <span className="hidden sm:inline text-[11px] text-ink-muted">{e.progress}%</span>
         </span>
       </span>
-      <Badge status={LABEL_STATUS_EVENT[e.status]} />
+      <Badge status={LABEL_STATUS_EVENT[e.status]} className="hidden sm:inline-flex" />
     </Link>
   );
 }
@@ -73,42 +76,42 @@ export function BerandaPage() {
 
   return (
     <div className="flex animate-fade-up flex-col gap-6">
-      <div className="relative flex flex-wrap items-end justify-between gap-6 overflow-hidden rounded-[26px] bg-navy px-6 py-8 text-white sm:px-9">
+      <div className="relative flex flex-wrap items-end justify-between gap-6 overflow-hidden rounded-[26px] bg-navy px-5 py-7 text-white sm:px-9 sm:py-8">
         <div className="absolute -top-[90px] -right-[60px] size-[260px] rounded-full bg-accent" />
         <div className="absolute -top-[50px] right-[120px] size-[120px] rounded-full bg-primary opacity-55" />
         <div className="absolute right-[30px] -bottom-[140px] size-[220px] rounded-full border-[30px] border-white/6" />
         <div className="relative flex max-w-[620px] flex-col gap-2.5">
           <div className="text-xs font-bold tracking-[.14em] text-accent uppercase">{formatHariTanggal(hari)}</div>
-          <h1 className="m-0 font-display text-4xl leading-[1.1] font-bold tracking-[-.02em]">Selamat Datang di SEKAR</h1>
-          <div className="text-[15px] leading-[1.6] text-on-navy">Kelola event, keuangan, dan administrasi{org?.nama ? ` ${org.nama}` : ''} dalam satu tempat.</div>
+          <h1 className="m-0 font-display text-2xl sm:text-4xl leading-[1.1] font-bold tracking-[-.02em]">Selamat Datang di SEKAR</h1>
+          <div className="text-sm sm:text-[15px] leading-[1.6] text-on-navy">Kelola event, keuangan, dan administrasi{org?.nama ? ` ${org.nama}` : ''} dalam satu tempat.</div>
         </div>
         <div className="relative flex flex-wrap gap-2.5">
           {boleh('tulisKeuangan') && (
             <Link
               to="/keuangan"
-              className="rounded-xl border border-white/20 bg-white/10 px-[18px] py-3 text-sm font-semibold whitespace-nowrap text-white hover:bg-white/18 hover:text-white"
+              className="rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs sm:text-sm font-semibold whitespace-nowrap text-white transition-all duration-150 hover:bg-white/18 hover:text-white active:scale-95"
             >
               Catat Transaksi
             </Link>
           )}
           {boleh('tulisEvent') && (
-            <Link to="/event/baru" className="rounded-xl bg-accent px-[18px] py-3 text-sm font-bold whitespace-nowrap text-navy hover:bg-accent-hover hover:text-navy">
+            <Link to="/event/baru" className="rounded-xl bg-accent px-4 py-2.5 text-xs sm:text-sm font-bold whitespace-nowrap text-navy transition-all duration-150 hover:bg-accent-hover hover:text-navy active:scale-95 shadow-sm">
               + Event Baru
             </Link>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(190px,1fr))] gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 wide:grid-cols-6 gap-3 sm:gap-4">
         {kartu.map((c) => (
-          <Card key={c.label} className="flex flex-col gap-3.5 p-5">
-            <div className="flex size-10 items-center justify-center rounded-xl" style={{ background: c.bg, color: c.fg }}>
-              <Icon name={c.icon} size={20} />
+          <Card key={c.label} className="group/card flex flex-col gap-3 p-3.5 sm:p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card">
+            <div className="flex size-9 sm:size-10 items-center justify-center rounded-xl" style={{ background: c.bg, color: c.fg }}>
+              <Icon name={c.icon} size={18} />
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-[13px] font-medium text-ink-slate">{c.label}</span>
-              <span className="font-display text-[23px] font-bold tracking-[-.01em] whitespace-nowrap text-navy">{c.value}</span>
-              <span className="truncate text-xs text-ink-subtle">{c.note}</span>
+            <div className="flex flex-col gap-0.5 sm:gap-1">
+              <span className="truncate text-xs sm:text-[13px] font-medium text-ink-slate">{c.label}</span>
+              <span className="font-display text-base sm:text-[22px] font-bold tracking-[-.01em] truncate text-navy">{c.value}</span>
+              <span className="truncate text-[11px] sm:text-xs text-ink-subtle">{c.note}</span>
             </div>
           </Card>
         ))}

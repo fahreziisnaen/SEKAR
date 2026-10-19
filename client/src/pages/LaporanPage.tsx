@@ -172,20 +172,20 @@ export function LaporanPage() {
     <div className="flex animate-fade-up flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-4 print:hidden">
         <div>
-          <h1 className="m-0 font-display text-[32px] font-bold tracking-[-.02em] text-navy">Laporan</h1>
-          <div className="mt-1.5 text-sm text-ink-slate">Susun laporan resmi event untuk tim dan mitra{org?.nama ? ` ${org.nama}` : ''}.</div>
+          <h1 className="m-0 font-display text-[26px] sm:text-[32px] font-bold tracking-[-.02em] text-navy">Laporan</h1>
+          <div className="mt-1 text-xs sm:text-sm text-ink-slate">Susun laporan resmi event untuk tim dan mitra{org?.nama ? ` ${org.nama}` : ''}.</div>
         </div>
-        <div className="flex gap-2.5">
-          <Button variant="secondary" onClick={eksporExcel} className="flex items-center gap-2 border-success-line px-4 py-[11px] text-[13px] font-bold text-success-ink hover:border-success-line hover:bg-success-pale">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={eksporExcel} className="flex items-center gap-1.5 border-success-line px-3.5 sm:px-4 py-2 sm:py-[11px] text-xs sm:text-[13px] font-bold text-success-ink hover:border-success-line hover:bg-success-pale">
             Export Excel
           </Button>
-          <Button variant="navy" onClick={eksporPdf} className="flex items-center gap-2 px-4 py-[11px] text-[13px]">
+          <Button variant="navy" onClick={eksporPdf} className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 sm:py-[11px] text-xs sm:text-[13px]">
             Export PDF
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 rounded-[18px] border border-line bg-white p-4 print:hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 rounded-[18px] border border-line bg-white p-3.5 sm:p-4 print:hidden">
         <label className={kelasFilter}>
           Event
           <select value={antarEvent ? '' : event.id} disabled={antarEvent} onChange={(ev) => pilih(Number(ev.target.value))} className={kelasSelect}>
@@ -220,7 +220,7 @@ export function LaporanPage() {
         </label>
       </div>
 
-      <div role="tablist" aria-label="Jenis laporan" className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3 print:hidden">
+      <div role="tablist" aria-label="Jenis laporan" className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-2.5 sm:gap-3 print:hidden">
         {JENIS.map(([k, l, desc, icon]) => {
           const on = k === jenis;
           return (
@@ -230,14 +230,17 @@ export function LaporanPage() {
               role="tab"
               aria-selected={on}
               onClick={() => ubah('jenis', k, 'keuangan')}
-              className={cx('flex cursor-pointer flex-col items-start gap-3 rounded-2xl border p-4 text-left', on ? 'border-navy bg-navy' : 'border-line bg-white hover:border-line-dash')}
+              className={cx(
+                'group flex cursor-pointer flex-col items-start gap-2.5 sm:gap-3 rounded-2xl border p-3 sm:p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:shadow-card active:scale-[0.98]',
+                on ? 'border-navy bg-navy' : 'border-line bg-white hover:border-line-dash',
+              )}
             >
-              <span className={cx('flex size-[34px] items-center justify-center rounded-[10px]', on ? 'bg-accent/18 text-accent' : 'bg-canvas text-navy')}>
-                <Icon name={icon} size={18} />
+              <span className={cx('flex size-8 sm:size-[34px] items-center justify-center rounded-[10px]', on ? 'bg-accent/18 text-accent' : 'bg-canvas text-navy')}>
+                <Icon name={icon} size={17} />
               </span>
-              <span className="flex flex-col gap-[3px]">
-                <span className={cx('text-[13px] font-bold', on ? 'text-white' : 'text-navy')}>{l}</span>
-                <span className={cx('text-[11px]', on ? 'text-on-navy-soft' : 'text-ink-muted')}>{desc}</span>
+              <span className="flex flex-col gap-0.5 sm:gap-[3px]">
+                <span className={cx('truncate max-w-full text-xs sm:text-[13px] font-bold', on ? 'text-white' : 'text-navy')}>{l}</span>
+                <span className={cx('line-clamp-2 text-[10px] sm:text-[11px]', on ? 'text-on-navy-soft' : 'text-ink-muted')}>{desc}</span>
               </span>
             </button>
           );
